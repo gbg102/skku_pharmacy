@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>약전람 · 약학정보 학습노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F5F6F1;
+    --paper-2:#EDEFE7;
+    --ink:#1E2B2A;
+    --ink-soft:#4A5652;
+    --line:#D9DCD1;
+    --green:#2F6F5E;
+    --green-deep:#1F4D40;
+    --amber:#B8752B;
+    --amber-bg:#FBF0DF;
+    --red:#A23B2E;
+    --red-bg:#F8E9E5;
+    --card:#FFFFFF;
+    --sidebar:#1E2B2A;
+    --sidebar-soft:#B7C4BE;
+    --sidebar-line:#33443F;
+    --radius:3px;
+    --serif:'Source Serif 4', Georgia, serif;
+    --sans:'IBM Plex Sans KR','IBM Plex Sans',sans-serif;
+    --mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+
+  /* ---------- layout ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:272px 1fr;
+    min-height:100vh;
+  }
+  @media (max-width:860px){
+    .app{grid-template-columns:1fr;}
+    .sidebar{position:fixed; top:0; left:0; height:100vh; z-index:40; transform:translateX(-100%); transition:transform .25s ease;}
+    .sidebar.open{transform:translateX(0);}
+    .scrim{display:none; position:fixed; inset:0; background:rgba(10,14,13,.45); z-index:30;}
+    .scrim.show{display:block;}
+    .menu-btn{display:inline-flex !important;}
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    background:var(--sidebar);
+    color:var(--sidebar-soft);
+    padding:22px 0 40px;
+    overflow-y:auto;
+  }
+  .brand{
+    padding:0 20px 18px;
+    border-bottom:1px solid var(--sidebar-line);
+    margin-bottom:14px;
+  }
+  .brand .mark{
+    display:flex; align-items:center; gap:9px;
+    font-family:var(--serif); font-weight:700; font-size:20px; color:#F2F4EF;
+  }
+  .brand .mark svg{flex:none;}
+  .brand .tag{font-size:12px; color:#8FA098; margin-top:5px; letter-spacing:.01em;}
+
+  .nav-group{margin-bottom:4px;}
+  .nav-label{
+    font-size:11px; color:#7A8A82; padding:14px 20px 6px;
+    font-weight:500;
+  }
+  .nav-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:9px 20px;
+    cursor:pointer;
+    font-size:14px;
+    color:var(--sidebar-soft);
+    border-left:3px solid transparent;
+    transition:background .12s ease, color .12s ease;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.04); color:#F2F4EF;}
+  .nav-item.active{
+    background:rgba(122,190,168,.10);
+    border-left-color:#7ABEA8;
+    color:#F2F4EF;
+    font-weight:500;
+  }
+  .nav-item .count{
+    font-family:var(--mono); font-size:11px; color:#6E7E76;
+    background:rgba(255,255,255,.05); padding:1px 6px; border-radius:10px;
+  }
+  .nav-item.active .count{color:#CDEAE0; background:rgba(122,190,168,.18);}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    padding:16px 34px;
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:16px;
+  }
+  .menu-btn{
+    display:none; align-items:center; justify-content:center;
+    width:34px; height:34px; border:1px solid var(--line); background:var(--card);
+    border-radius:var(--radius); cursor:pointer; flex:none;
+  }
+  .search-wrap{position:relative; flex:1; max-width:520px;}
+  .search-wrap input{
+    width:100%; padding:9px 14px 9px 34px;
+    border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--card); font-family:var(--sans); font-size:14px; color:var(--ink);
+  }
+  .search-wrap input:focus{outline:none; border-color:var(--green);}
+  .search-wrap svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); opacity:.45;}
+  .search-results{
+    position:absolute; top:calc(100% + 6px); left:0; right:0;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:0 8px 24px rgba(20,30,28,.10);
+    max-height:360px; overflow-y:auto; z-index:50; display:none;
+  }
+  .search-results.show{display:block;}
+  .sr-item{padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--paper-2);}
+  .sr-item:last-child{border-bottom:none;}
+  .sr-item:hover{background:var(--paper-2);}
+  .sr-item .sr-name{font-weight:600; font-size:14px;}
+  .sr-item .sr-meta{font-size:12px; color:var(--ink-soft); margin-top:1px;}
+  .sr-empty{padding:16px; font-size:13px; color:var(--ink-soft);}
+
+  /* ---------- main ---------- */
+  main{padding:34px; max-width:920px;}
+
+  .hero{
+    padding-bottom:22px; margin-bottom:26px; border-bottom:1px solid var(--line);
+  }
+  .hero h1{
+    font-family:var(--serif); font-weight:700; font-size:32px; margin:0 0 8px;
+    letter-spacing:-.01em;
+  }
+  .hero p{margin:0 0 14px; color:var(--ink-soft); font-size:15px; max-width:640px;}
+  .hero-stats{display:flex; gap:22px; flex-wrap:wrap;}
+  .hero-stats div{font-size:13px; color:var(--ink-soft);}
+  .hero-stats b{font-family:var(--serif); font-size:19px; color:var(--green-deep); display:block;}
+
+  .section-head{margin:0 0 18px;}
+  .section-head h2{font-family:var(--serif); font-size:23px; font-weight:700; margin:0 0 4px;}
+  .section-head p{margin:0; color:var(--ink-soft); font-size:14px;}
+
+  /* ---------- monograph card ---------- */
+  .mono-list{display:flex; flex-direction:column; gap:16px;}
+  .mono-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    position:relative;
+    padding:20px 22px 20px 24px;
+    border-left:4px solid var(--green);
+  }
+  .mono-tab{
+    font-size:11px; color:var(--green-deep); font-weight:500;
+    margin-bottom:6px;
+  }
+  .mono-card h3{
+    font-family:var(--serif); font-size:20px; font-weight:700; margin:0 0 6px;
+  }
+  .mono-examples{
+    font-family:var(--mono); font-size:12px; color:var(--ink-soft);
+    margin-bottom:14px;
+  }
+  .mono-examples span{
+    background:var(--paper-2); padding:2px 7px; border-radius:2px; margin-right:6px; display:inline-block; margin-bottom:4px;
+  }
+  .mono-field{padding:9px 0; border-top:1px solid var(--paper-2); display:flex; gap:14px;}
+  .mono-field:first-of-type{border-top:none;}
+  .mono-field .flabel{
+    flex:none; width:96px; font-size:12.5px; font-weight:600; padding-top:1px;
+    display:flex; align-items:flex-start; gap:6px;
+  }
+  .mono-field .flabel i{width:7px; height:7px; border-radius:1px; margin-top:5px; flex:none; display:inline-block;}
+  .mono-field .ftext{flex:1; font-size:14px; color:var(--ink);}
+  .flabel.moa i{background:var(--green);}
+  .flabel.ind i{background:#5B7FB5;}
+  .flabel.adv i{background:var(--amber);}
+  .flabel.caution i{background:var(--red);}
+  .flabel.inter i{background:#7A5EA8;}
+
+  /* ---------- concept / glossary cards ---------- */
+  .concept-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media (max-width:640px){.concept-grid{grid-template-columns:1fr;}}
+  .concept-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .concept-card h4{
+    font-family:var(--serif); font-size:16px; margin:0 0 6px; font-weight:700;
+  }
+  .concept-card p{margin:0; font-size:13.5px; color:var(--ink-soft);}
+
+  /* ---------- protocol card ---------- */
+  .proto-card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:16px; border-left:4px solid #5B7FB5;
+  }
+  .proto-card h3{font-family:var(--serif); font-size:19px; font-weight:700; margin:0 0 6px;}
+  .proto-overview{font-size:13.5px; color:var(--ink-soft); margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--paper-2);}
+  .proto-steps{list-style:none; margin:0 0 14px; padding:0; counter-reset:step;}
+  .proto-steps li{
+    counter-increment:step; position:relative; padding:8px 0 8px 34px; font-size:14px;
+    border-top:1px solid var(--paper-2);
+  }
+  .proto-steps li:first-child{border-top:none;}
+  .proto-steps li::before{
+    content:counter(step); position:absolute; left:0; top:8px;
+    width:22px; height:22px; border-radius:50%; background:#EDF1F7; color:#3E5A87;
+    font-family:var(--mono); font-size:11.5px; font-weight:500;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .proto-steps li b{font-weight:600;}
+  .proto-foot{display:flex; gap:14px; flex-wrap:wrap; font-size:13px;}
+  .proto-foot div{flex:1; min-width:220px;}
+  .proto-foot .flabel-sm{font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:3px; display:flex; align-items:center; gap:6px;}
+  .proto-foot .flabel-sm i{width:7px; height:7px; border-radius:1px; display:inline-block;}
+  .proto-foot .drugs i{background:var(--green);}
+  .proto-foot .caution i{background:var(--red);}
+
+  /* ---------- special population card ---------- */
+  .pop-overview{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 20px; margin-bottom:18px; font-size:14px; color:var(--ink-soft);
+    border-left:4px solid #7A5EA8;
+  }
+  .prin-list{list-style:none; margin:0 0 24px; padding:0; display:flex; flex-direction:column; gap:0;}
+  .prin-list li{
+    display:flex; gap:12px; padding:11px 0; border-top:1px solid var(--paper-2); font-size:14px;
+  }
+  .prin-list li:first-child{border-top:none;}
+  .prin-list li i{
+    flex:none; width:7px; height:7px; border-radius:1px; background:#7A5EA8; margin-top:7px;
+  }
+  .prin-list li b{font-weight:600;}
+  .pop-table-head{font-family:var(--serif); font-size:16px; font-weight:700; margin:0 0 10px;}
+
+  /* ---------- tables ---------- */
+  table{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  thead th{
+    text-align:left; font-size:12px; font-weight:600; color:var(--ink-soft);
+    padding:10px 14px; background:var(--paper-2); border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:12px 14px; font-size:13.5px; border-bottom:1px solid var(--paper-2); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  .sev{
+    display:inline-block; padding:2px 8px; border-radius:10px; font-size:11.5px; font-weight:500;
+  }
+  .sev.high{background:var(--red-bg); color:var(--red);}
+  .sev.mid{background:var(--amber-bg); color:var(--amber);}
+  .mono-col{font-family:var(--mono); font-size:12.5px;}
+
+  .abbr-grid{display:grid; grid-template-columns:1fr 1fr; gap:0 28px;}
+  @media (max-width:640px){.abbr-grid{grid-template-columns:1fr;}}
+  .abbr-row{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--paper-2); font-size:14px;}
+  .abbr-row .a{font-family:var(--mono); font-weight:500; color:var(--green-deep);}
+  .abbr-row .b{color:var(--ink-soft); text-align:right;}
+
+  footer{padding:30px 34px 60px; color:var(--ink-soft); font-size:12.5px; border-top:1px solid var(--line); margin-top:10px;}
+</style>
+</head>
+<body>
+
+<div class="scrim" id="scrim"></div>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 14.5L14.5 6a4 4 0 0 1 5.66 5.66L11.66 20.2a4 4 0 0 1-5.66-5.66z" stroke="#7ABEA8" stroke-width="1.6"/><path d="M9.5 11L14.5 16" stroke="#7ABEA8" stroke-width="1.6" stroke-linecap="round"/></svg>
+        약전람
+      </div>
+      <div class="tag">약대생을 위한 약학정보 학습노트</div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">약물 분류</div>
+      <div id="nav-categories"></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">임상 프로토콜</div>
+      <div class="nav-item" data-view="protocols">질환별 치료 알고리즘 <span class="count" id="cnt-proto"></span></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">특수 집단 고려사항</div>
+      <div id="nav-populations"></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">핵심 개념</div>
+      <div class="nav-item" data-view="concepts">약동학·약력학 <span class="count" id="cnt-concepts"></span></div>
+      <div class="nav-item" data-view="interactions">주요 약물상호작용 <span class="count" id="cnt-inter"></span></div>
+      <div class="nav-item" data-view="abbr">처방 약어 사전 <span class="count" id="cnt-abbr"></span></div>
+    </div>
+  </aside>
+
+  <div>
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="메뉴 열기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="#1E2B2A" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <div class="search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#1E2B2A" stroke-width="1.8"/><path d="M21 21l-4.3-4.3" stroke="#1E2B2A" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input id="searchInput" type="text" placeholder="약물명, 계열, 개념으로 검색 (예: metformin, 반감기, 세로토닌 증후군)">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+    </div>
+
+    <main id="main"></main>
+
+    <footer>
+      본 자료는 약대생의 학습 보조 목적의 요약 정리이며, 실제 처방·조제·복약지도의 근거자료로 사용할 수 없습니다.
+      최신 허가사항 및 용량은 반드시 최신 첨부문서(약학정보원, KIMS, 식약처)와 지도교수·약사의 확인을 거치세요.
+    </footer>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   DATA
+   ========================================================= */
+const CATEGORIES = [
+  {
+    id:'cv', name:'심혈관계', icon:'❤',
+    desc:'혈압, 심박, 지질, 응고에 작용하는 약물군',
+    items:[
+      {name:'ACE 억제제', examples:['enalapril','lisinopril','captopril','ramipril'],
+        moa:'안지오텐신전환효소(ACE)를 억제하여 안지오텐신Ⅱ 생성을 감소시키고, 브라디키닌 분해를 억제해 혈관을 확장한다.',
+        ind:'고혈압, 심부전, 당뇨병성 신증(단백뇨 감소), 심근경색 후 관리',
+        adv:'마른기침(브라디키닌 축적), 고칼륨혈증, 혈관부종, 급성신손상(양측 신동맥협착 시)',
+        caution:'임신부 금기(태아 신장기형), 양측 신동맥협착 환자 주의, 혈청 크레아티닌·칼륨 모니터링 필요',
+        inter:'칼륨보존이뇨제·칼륨보충제와 병용 시 고칼륨혈증 위험, NSAIDs 병용 시 신기능 저하 위험 증가'},
+      {name:'ARB (안지오텐신Ⅱ 수용체차단제)', examples:['losartan','valsartan','candesartan'],
+        moa:'안지오텐신Ⅱ의 AT1 수용체 결합을 차단하여 혈관수축·알도스테론 분비를 억제한다.',
+        ind:'고혈압, 심부전, 당뇨병성 신증 (ACE 억제제 기침 부작용 시 대체)',
+        adv:'고칼륨혈증, 어지러움, 드물게 혈관부종(ACE 억제제보다 빈도 낮음)',
+        caution:'임신부 금기, 양측 신동맥협착 주의',
+        inter:'ACE 억제제와 병용 비권장(상승적 고칼륨혈증·신기능 저하), 칼륨보존이뇨제 병용 주의'},
+      {name:'칼슘채널차단제 (CCB)', examples:['amlodipine (DHP계)','diltiazem, verapamil (non-DHP계)'],
+        moa:'전압작동 L형 칼슘통로를 차단하여 혈관평활근 이완(DHP계) 또는 심근·방실결절 전도 억제(non-DHP계)를 일으킨다.',
+        ind:'고혈압, 협심증, 부정맥(non-DHP계), 레이노병',
+        adv:'말초부종, 두통, 홍조(DHP계), 서맥·변비·방실차단(non-DHP계)',
+        caution:'심부전(수축기능저하) 환자에서 non-DHP계 주의, 베타차단제와 non-DHP계 병용 시 과도한 방실차단 위험',
+        inter:'그레이프프루트주스는 CYP3A4 억제로 DHP계 혈중농도를 상승시킴, 베타차단제와 verapamil/diltiazem 병용 시 서맥·심차단 위험'},
+      {name:'베타차단제', examples:['metoprolol','propranolol','carvedilol','bisoprolol'],
+        moa:'β1(심장) 및/또는 β2(기관지·혈관) 아드레날린 수용체를 차단하여 심박수·수축력·전도속도를 감소시킨다.',
+        ind:'고혈압, 협심증, 심부전(carvedilol 등 일부), 부정맥, 심근경색 후 이차예방',
+        adv:'서맥, 피로, 저혈압, 기관지수축(비선택적 제제에서 천식 악화 가능), 말초혈관수축',
+        caution:'천식·COPD 환자는 β1 선택적 제제 신중 투여, 급격한 중단 시 반동성 빈맥·협심증 위험(서서히 감량)',
+        inter:'non-DHP CCB·디곡신과 병용 시 서맥·방실차단 위험, 인슐린 저혈당 증상(빈맥) 은폐 가능'},
+      {name:'이뇨제', examples:['furosemide (루프)','hydrochlorothiazide (티아지드)','spironolactone (칼륨보존)'],
+        moa:'furosemide는 헨레고리 상행각 Na-K-2Cl 공동수송체 억제, thiazide는 원위세뇨관 Na-Cl 공동수송체 억제, spironolactone은 알도스테론 수용체 길항으로 작용한다.',
+        ind:'고혈압, 부종(심부전·간경변·신증후군), 급성폐부종(furosemide)',
+        adv:'루프·티아지드: 저칼륨혈증, 저나트륨혈증, 탈수 / 스피로놀락톤: 고칼륨혈증, 여성형유방',
+        caution:'통풍 환자에서 요산 상승 주의, 신기능 저하 시 용량 조절 필요',
+        inter:'디곡신과 병용 시 저칼륨혈증으로 디곡신 독성 위험 증가, ACE억제제·ARB와 스피로놀락톤 병용 시 고칼륨혈증'},
+      {name:'스타틴 (HMG-CoA 환원효소억제제)', examples:['atorvastatin','simvastatin','rosuvastatin'],
+        moa:'콜레스테롤 합성의 율속효소인 HMG-CoA 환원효소를 억제하여 간세포의 LDL 수용체 발현을 증가시킨다.',
+        ind:'이상지질혈증, 죽상경화성 심혈관질환 예방',
+        adv:'근육통·횡문근융해증(드묾), 간효소 상승',
+        caution:'임신부 금기, 간질환 환자 주의, 정기적 간기능·CK 모니터링',
+        inter:'CYP3A4 억제제(clarithromycin, 그레이프프루트주스, 아졸계 항진균제)와 병용 시 혈중농도 상승 및 근병증 위험 증가'},
+      {name:'항혈소판제', examples:['aspirin (저용량)','clopidogrel','ticagrelor'],
+        moa:'aspirin은 COX-1을 비가역적으로 억제해 트롬복산A2 생성을 차단, clopidogrel은 P2Y12 수용체를 비가역적으로 억제해 혈소판 활성화를 차단한다.',
+        ind:'허혈성 심질환·뇌졸중 예방, 관상동맥 스텐트 후 이중항혈소판요법',
+        adv:'출혈(위장관 출혈 포함), 위장장애(aspirin)',
+        caution:'수술 전 중단 시점 고려 필요, 소화성궤양 병력자 주의',
+        inter:'NSAIDs·와파린과 병용 시 출혈 위험 상승, PPI(omeprazole)가 clopidogrel의 CYP2C19 활성화를 저해할 수 있음'},
+      {name:'항응고제', examples:['warfarin','heparin','rivaroxaban, apixaban (DOAC)'],
+        moa:'warfarin은 비타민K 의존성 응고인자(Ⅱ,Ⅶ,Ⅸ,Ⅹ) 합성 억제, heparin은 항트롬빈Ⅲ 활성화, DOAC은 Xa인자 또는 트롬빈을 직접 억제한다.',
+        ind:'심방세동의 뇌졸중 예방, 정맥혈전색전증 치료·예방, 인공판막',
+        adv:'출혈이 공통 부작용, heparin은 헤파린유도혈소판감소증(HIT) 가능',
+        caution:'warfarin은 치료지수가 좁아 INR 정기 모니터링 필요, 임신부는 heparin계 사용(와파린 기형유발성)',
+        inter:'warfarin은 비타민K 함유 식품(녹색채소)·CYP2C9 억제제(플루코나졸, 메트로니다졸)에 의해 효과가 크게 변동됨, NSAIDs 병용 시 출혈 위험 상승'},
+    ]
+  },
+  {
+    id:'cns', name:'중추신경계', icon:'◐',
+    desc:'정신·신경 질환 및 통증 관리에 사용되는 약물군',
+    items:[
+      {name:'벤조디아제핀계', examples:['diazepam','lorazepam','alprazolam','midazolam'],
+        moa:'GABA-A 수용체의 알로스테릭 부위에 결합하여 GABA의 억제성 신경전달을 강화한다(Cl- 통로 개방 빈도 증가).',
+        ind:'불안장애, 불면증, 급성 발작·경련, 알코올 금단, 수술 전 진정',
+        adv:'졸림, 인지기능 저하, 의존성·내성, 노인 낙상 위험',
+        caution:'장기 사용 시 의존 위험으로 최소 유효기간 사용 권장, 갑작스러운 중단 시 금단증상(경련 포함)',
+        inter:'오피오이드·알코올과 병용 시 호흡억제 상승작용으로 사망 위험 증가(병용 주의 강조)'},
+      {name:'SSRI (선택적 세로토닌 재흡수억제제)', examples:['fluoxetine','sertraline','escitalopram','paroxetine'],
+        moa:'시냅스전 신경종말의 세로토닌 재흡수 수송체(SERT)를 선택적으로 억제하여 시냅스 내 세로토닌 농도를 높인다.',
+        ind:'주요우울장애, 공황장애, 강박장애, 사회불안장애',
+        adv:'오심, 성기능장애, 초기 불안 증가, 저나트륨혈증(노인)',
+        caution:'투여 초기 자살사고 모니터링(특히 청소년), 급격한 중단 시 중단증후군',
+        inter:'MAOI와 병용 금기(세로토닌 증후군 위험), 다른 세로토닌성 약물(트라마돌, 트립탄계)과 병용 주의'},
+      {name:'삼환계 항우울제 (TCA)', examples:['amitriptyline','nortriptyline','imipramine'],
+        moa:'세로토닌·노르에피네프린 재흡수를 비선택적으로 억제하며, 무스카린·히스타민·알파1 수용체에도 작용한다.',
+        ind:'우울증, 신경병증성 통증, 편두통 예방(저용량)',
+        adv:'항콜린성 부작용(구갈, 변비, 요저류), 기립성저혈압, 심전도 QT연장·부정맥',
+        caution:'과량복용 시 치명적 심독성으로 자살 위험 환자에서 처방 주의, 노인·심질환자 신중 투여',
+        inter:'MAOI 병용 금기, 다른 QT연장 약물과 병용 시 부정맥 위험 상승'},
+      {name:'비정형 항정신병약물', examples:['olanzapine','risperidone','quetiapine','clozapine'],
+        moa:'도파민 D2 수용체 및 세로토닌 5-HT2A 수용체를 동시에 차단하여 양성·음성 증상을 조절한다.',
+        ind:'조현병, 양극성장애, 치료저항성 우울증 보조',
+        adv:'체중증가·대사증후군(특히 olanzapine, clozapine), 추체외로 증상(정형 약물보다 적음), clozapine은 무과립구증',
+        caution:'clozapine 투여 시 정기적 백혈구수 모니터링 필수, 대사지표(혈당·지질) 정기 검사 권장',
+        inter:'CYP450 대사 약물과 상호작용 다수, 다른 진정제와 병용 시 진정작용 상승'},
+      {name:'항경련제', examples:['valproate','carbamazepine','phenytoin','lamotrigine','levetiracetam'],
+        moa:'전압작동 나트륨통로 억제(phenytoin, carbamazepine), GABA 농도 증가(valproate) 등 기전이 다양하다.',
+        ind:'뇌전증, 양극성장애 기분안정(valproate, carbamazepine), 신경병증성 통증',
+        adv:'졸림·어지러움, valproate는 간독성·기형유발성, carbamazepine은 스티븐스-존슨증후군·저나트륨혈증, phenytoin은 치은증식·소뇌실조',
+        caution:'valproate·carbamazepine 임신부 사용 시 신경관결손 등 기형 위험(임신 계획 시 상담 필요), 치료약물농도모니터링(TDM) 대상 약물 다수',
+        inter:'carbamazepine·phenytoin은 강력한 CYP450 유도제로 경구피임제·와파린 등 다수 약물의 효과를 감소시킴'},
+      {name:'오피오이드 진통제', examples:['morphine','oxycodone','fentanyl','tramadol'],
+        moa:'중추신경계 및 말초의 μ(뮤) 오피오이드 수용체에 작용하여 통증 신호전달을 억제한다.',
+        ind:'중등도~중증 급성/만성 통증, 암성통증, 마취 보조',
+        adv:'호흡억제(가장 치명적), 변비(내성 형성 안 됨), 오심, 의존성·내성',
+        caution:'호흡기질환자 신중 투여, 장기 사용 시 변비 예방적 완하제 병용 권장, 날록손을 길항제로 상비',
+        inter:'벤조디아제핀·알코올·다른 중추신경억제제와 병용 시 호흡억제 상승작용, tramadol은 SSRI와 병용 시 세로토닌 증후군 위험'},
+      {name:'NSAIDs (비스테로이드성 소염진통제)', examples:['ibuprofen','naproxen','diclofenac','celecoxib (COX-2 선택적)'],
+        moa:'사이클로옥시게나제(COX-1, COX-2)를 억제하여 프로스타글란딘 합성을 감소시켜 소염·해열·진통 작용을 나타낸다.',
+        ind:'경도~중등도 통증, 염증성 질환(관절염), 발열',
+        adv:'위장관 출혈·궤양(COX-1 억제), 신기능 저하, 심혈관 위험 증가(특히 COX-2 선택적 제제)',
+        caution:'소화성궤양 병력·신기능저하·심부전 환자 주의, 임신 3분기 금기(동맥관 조기폐쇄)',
+        inter:'항응고제·항혈소판제와 병용 시 출혈 위험 상승, ACE억제제·이뇨제 효과 감소 및 신독성 상승(삼중 위험 조합)'},
+      {name:'파킨슨병 치료제', examples:['levodopa/carbidopa','pramipexole','selegiline'],
+        moa:'levodopa는 혈액뇌장벽을 통과해 도파민으로 전환되어 부족한 선조체 도파민을 보충하며, carbidopa는 말초 탈탄산효소를 억제해 부작용을 줄인다.',
+        ind:'파킨슨병의 운동증상(경직, 서동, 진전) 조절',
+        adv:'오심, 기립성저혈압, 장기 사용 시 이상운동증(dyskinesia)·약효소진현상(wearing-off)',
+        caution:'고단백 식이는 levodopa 흡수를 방해할 수 있어 복용 시간 조절 필요',
+        inter:'비선택적 MAOI와 병용 금기(고혈압 위기 위험), 항정신병약물(도파민 차단제)과 병용 시 효과 상쇄'},
+    ]
+  },
+  {
+    id:'anti', name:'항감염제', icon:'✚',
+    desc:'세균·바이러스·진균 감염 치료에 사용되는 약물군',
+    items:[
+      {name:'페니실린계', examples:['amoxicillin','ampicillin','piperacillin-tazobactam'],
+        moa:'세균 세포벽의 펩티도글리칸 합성에 관여하는 penicillin-binding protein(PBP)을 억제하여 세포벽 합성을 저해, 살균작용을 나타낸다.',
+        ind:'상기도감염, 요로감염, 피부연조직감염 등 그람양성균 위주 감염(광범위 제제는 그람음성균 포함)',
+        adv:'과민반응(두드러기~아나필락시스), 설사, 위장장애',
+        caution:'페니실린 알레르기 병력 확인 필수, 세팔로스포린과 교차알레르기 가능성(약 1~10%)',
+        inter:'경구피임제 효과 감소 가능성(이론적), probenecid는 신배설을 지연시켜 혈중농도 상승'},
+      {name:'세팔로스포린계', examples:['cefazolin (1세대)','cefuroxime (2세대)','ceftriaxone (3세대)','cefepime (4세대)'],
+        moa:'페니실린계와 동일하게 PBP에 결합해 세포벽 합성을 억제하며, 세대가 올라갈수록 그람음성균 및 녹농균 커버리지가 확대된다.',
+        ind:'세대별로 피부감염(1세대)부터 수막염·중증 원내감염(3~4세대)까지 광범위',
+        adv:'과민반응, 위장장애, ceftriaxone은 담즙정체(가성담석) 가능',
+        caution:'페니실린 중증 알레르기(아나필락시스) 병력 시 교차반응 주의',
+        inter:'ceftriaxone과 칼슘 함유 정맥주사액 동시 투여 금기(침전물 형성 보고, 특히 신생아)'},
+      {name:'마크로라이드계', examples:['azithromycin','clarithromycin','erythromycin'],
+        moa:'세균 리보솜 50S 소단위에 결합하여 단백질 합성(전좌 과정)을 억제한다(정균작용).',
+        ind:'비정형 폐렴, 상기도감염, 페니실린 알레르기 환자의 대체 치료',
+        adv:'위장장애, QT연장, clarithromycin·erythromycin은 CYP3A4 강력 억제',
+        caution:'QT연장 위험 약물 병용 시 부정맥 모니터링',
+        inter:'clarithromycin은 스타틴·CCB 등 CYP3A4 기질 약물의 혈중농도를 크게 상승시켜 독성 위험 증가(azithromycin은 상호작용 적음)'},
+      {name:'플루오로퀴놀론계', examples:['ciprofloxacin','levofloxacin','moxifloxacin'],
+        moa:'세균 DNA gyrase(토포이소머라제Ⅱ) 및 토포이소머라제Ⅳ를 억제하여 DNA 복제를 차단한다(살균작용).',
+        ind:'요로감염, 호흡기감염, 위장관감염, 일부 골관절감염',
+        adv:'건염·건파열(특히 아킬레스건), QT연장, 말초신경병증, 광과민반응',
+        caution:'소아·임신부 신중 투여(연골독성 우려), 중증근무력증 환자 악화 가능',
+        inter:'2가/3가 양이온(제산제, 철분제, 칼슘, 유제품)과 킬레이트 형성으로 흡수가 크게 저하되므로 2시간 이상 간격 두고 복용'},
+      {name:'아미노글리코사이드계', examples:['gentamicin','amikacin','tobramycin'],
+        moa:'세균 리보솜 30S 소단위에 비가역적으로 결합해 단백질 합성을 저해하고 오독(misreading)을 유발한다(살균작용, 농도의존적).',
+        ind:'중증 그람음성균 감염, 패혈증(병용요법으로 주로 사용)',
+        adv:'신독성, 이독성(청력·전정기능 손상, 비가역적일 수 있음)',
+        caution:'농도의존적 살균제로 치료약물농도모니터링(TDM) 필수, 신기능에 따른 용량 조절 필요',
+        inter:'다른 신독성·이독성 약물(반코마이신, 루프이뇨제)과 병용 시 독성 상승'},
+      {name:'항바이러스제', examples:['oseltamivir (인플루엔자)','acyclovir (헤르페스)','tenofovir (HBV/HIV)'],
+        moa:'oseltamivir는 뉴라미니다제 억제로 바이러스 방출 차단, acyclovir는 바이러스 DNA 중합효소를 억제해 DNA 합성을 저해한다.',
+        ind:'인플루엔자, 단순포진·대상포진, B형간염·HIV 감염',
+        adv:'oseltamivir는 오심·구토, acyclovir는 신독성(급속 정맥주입 시 결정뇨) 가능',
+        caution:'acyclovir 정맥투여 시 충분한 수분공급으로 신독성 예방',
+        inter:'신독성 약물과 acyclovir 병용 시 신기능 모니터링 필요'},
+      {name:'항진균제', examples:['fluconazole (아졸계)','amphotericin B (폴리엔계)','terbinafine'],
+        moa:'아졸계는 진균 세포막의 에르고스테롤 합성효소(CYP450 계열)를 억제하고, amphotericin B는 에르고스테롤에 직접 결합해 세포막 투과성을 변화시킨다.',
+        ind:'칸디다증, 전신진균감염(amphotericin B), 피부진균증',
+        adv:'fluconazole은 간독성·QT연장, amphotericin B는 신독성·오한·발열("shake and bake")이 특징적',
+        caution:'amphotericin B 투여 시 신기능·전해질(특히 칼륨) 모니터링 필수',
+        inter:'fluconazole은 CYP2C9·3A4 억제로 와파린·스타틴 등 다수 약물의 혈중농도 상승'},
+      {name:'항결핵제', examples:['isoniazid (INH)','rifampin','ethambutol','pyrazinamide'],
+        moa:'isoniazid는 마이콜산 합성 억제, rifampin은 RNA 중합효소 억제, ethambutol은 세포벽 arabinogalactan 합성 억제로 작용한다.',
+        ind:'활동성/잠복 결핵의 병용요법(단일요법 시 내성 발현 위험)',
+        adv:'isoniazid는 말초신경병증(비타민B6 병용으로 예방)·간독성, ethambutol은 시신경염(시력 모니터링), rifampin은 체액의 주황색 변색',
+        caution:'간기능 정기 모니터링, 반드시 4제 병용요법으로 내성 예방',
+        inter:'rifampin은 강력한 CYP450 유도제로 경구피임제·항응고제·항레트로바이러스제 등 다수 약물의 효과를 감소시킴'},
+    ]
+  },
+  {
+    id:'endo', name:'내분비·대사', icon:'◆',
+    desc:'당뇨, 갑상선, 호르몬 관련 약물군',
+    items:[
+      {name:'인슐린', examples:['속효성: lispro, aspart','중간형: NPH','지속형: glargine, detemir'],
+        moa:'인슐린 수용체에 결합해 세포 내 포도당 유입(GLUT4 이동)을 촉진하고 간의 당신생을 억제한다.',
+        ind:'제1형 당뇨병(필수), 제2형 당뇨병(경구제 조절 실패 시), 임신성 당뇨병',
+        adv:'저혈당(가장 중요한 부작용), 체중증가, 주사부위 지방비대',
+        caution:'저혈당 증상(발한, 떨림, 의식저하) 교육 필수, 주사부위 로테이션',
+        inter:'베타차단제는 저혈당 증상(빈맥 등)을 은폐할 수 있어 주의'},
+      {name:'경구혈당강하제', examples:['metformin (비구아니드)','glimepiride (설포닐우레아)','sitagliptin (DPP-4 억제제)','empagliflozin (SGLT2 억제제)'],
+        moa:'metformin은 간 당신생 억제 및 말초 인슐린감수성 증가, 설포닐우레아는 췌장 베타세포 인슐린분비 촉진, SGLT2 억제제는 신장에서 포도당 재흡수를 차단한다.',
+        ind:'제2형 당뇨병 1차/병용 치료',
+        adv:'metformin은 위장장애·비타민B12 결핍, 설포닐우레아는 저혈당·체중증가, SGLT2 억제제는 요로·생식기감염, 드물게 케토산증',
+        caution:'metformin은 신기능 저하(eGFR<30) 시 금기(젖산산증 위험), 조영제 사용 전후 일시 중단 고려',
+        inter:'설포닐우레아는 다른 저혈당 유발 약물과 병용 시 저혈당 위험 상승'},
+      {name:'갑상선호르몬제 / 항갑상선제', examples:['levothyroxine (갑상선기능저하증)','methimazole, propylthiouracil (갑상선기능항진증)'],
+        moa:'levothyroxine은 T4로서 갑상선호르몬을 보충, methimazole은 갑상선과산화효소를 억제해 호르몬 합성을 차단한다.',
+        ind:'갑상선기능저하증(levothyroxine), 갑상선기능항진증·그레이브스병(항갑상선제)',
+        adv:'levothyroxine 과량 시 빈맥·불안(갑상선중독 증상), methimazole은 무과립구증(드묾)',
+        caution:'levothyroxine은 공복 시 일정 시간에 복용 권장(흡수 일관성), 정기적 갑상선기능검사(TSH) 필요',
+        inter:'levothyroxine은 철분제·칼슘제·제산제와 동시 복용 시 흡수 저하되므로 4시간 간격 권장'},
+      {name:'전신 코르티코스테로이드', examples:['prednisone','methylprednisolone','dexamethasone'],
+        moa:'세포질 글루코코르티코이드 수용체에 결합해 염증성 유전자 전사를 억제하고 항염증 단백질 발현을 촉진한다.',
+        ind:'자가면역질환, 심한 알레르기반응, 천식 급성악화, 장기이식 거부반응 예방',
+        adv:'장기 사용 시 쿠싱양 증후군, 골다공증, 고혈당, 부신기능억제, 감염 위험 증가',
+        caution:'장기 투여 후 급격한 중단 금지(부신위기 위험, 서서히 감량), 위장보호제 병용 고려',
+        inter:'NSAIDs 병용 시 위장관 궤양 위험 상승, 이뇨제와 병용 시 저칼륨혈증 위험'},
+    ]
+  },
+  {
+    id:'gi', name:'소화기계', icon:'▽',
+    desc:'위장관 질환 관리에 사용되는 약물군',
+    items:[
+      {name:'양성자펌프억제제 (PPI)', examples:['omeprazole','esomeprazole','pantoprazole'],
+        moa:'위벽세포의 H+/K+-ATPase(양성자펌프)를 비가역적으로 억제하여 위산 분비를 강력하게 차단한다.',
+        ind:'위식도역류질환(GERD), 소화성궤양, 헬리코박터 파일로리 제균요법 병용',
+        adv:'장기 사용 시 골절 위험 증가, 저마그네슘혈증, 위장관감염(C. difficile) 위험 증가',
+        caution:'불필요한 장기 사용을 피하고 정기적으로 필요성 재평가',
+        inter:'clopidogrel의 활성화(CYP2C19)를 저해할 수 있어 병용 시 항혈소판 효과 감소 우려(특히 omeprazole)'},
+      {name:'H2 수용체 차단제', examples:['famotidine','ranitidine(현재 유통제한)','cimetidine'],
+        moa:'위벽세포의 히스타민 H2 수용체를 차단하여 위산 분비를 감소시킨다(PPI보다 효과는 약함).',
+        ind:'경도 GERD, 소화성궤양, 야간 위산분비 조절',
+        adv:'두통, 어지러움, cimetidine은 항안드로겐 작용(여성형유방)',
+        caution:'신기능저하 환자 용량 조절 필요',
+        inter:'cimetidine은 CYP450 억제제로 와파린 등 다수 약물의 대사를 저해함'},
+      {name:'제산제', examples:['aluminum hydroxide','magnesium hydroxide','calcium carbonate'],
+        moa:'위산을 직접 중화하여 위내 pH를 신속히 상승시킨다.',
+        ind:'속쓰림·소화불량의 즉각적 증상완화',
+        adv:'aluminum계는 변비, magnesium계는 설사(둘을 병합해 상쇄하는 제제도 있음)',
+        caution:'신기능저하 환자에서 마그네슘·알루미늄 축적 주의',
+        inter:'퀴놀론계·테트라사이클린계·일부 약물과 킬레이트를 형성해 흡수를 저해하므로 투여 간격 확보 필요'},
+      {name:'지사제·진토제·완하제', examples:['loperamide (지사제)','ondansetron (진토제)','lactulose, polyethylene glycol (완하제)'],
+        moa:'loperamide는 장관 오피오이드 수용체 작용으로 장운동 저하, ondansetron은 5-HT3 수용체 길항으로 구토 억제, lactulose는 삼투압 작용으로 배변을 촉진한다.',
+        ind:'급성 설사(loperamide), 항암화학요법·수술 후 오심구토(ondansetron), 변비(완하제)',
+        adv:'ondansetron은 QT연장, loperamide는 감염성 설사에서 독소 배출 지연 우려',
+        caution:'발열·혈변 동반 설사에는 loperamide 사용 자제(세균성 장염 악화 우려)',
+        inter:'ondansetron은 다른 QT연장 약물과 병용 시 부정맥 위험 상승'},
+    ]
+  },
+  {
+    id:'resp', name:'호흡기계', icon:'⌇',
+    desc:'천식, COPD, 알레르기 질환 관리 약물군',
+    items:[
+      {name:'베타2 작용제', examples:['albuterol/salbutamol (속효성)','salmeterol, formoterol (지속성)'],
+        moa:'기관지 평활근의 β2 아드레날린 수용체를 자극하여 cAMP를 증가시켜 기관지를 확장시킨다.',
+        ind:'천식·COPD의 급성 증상완화(속효성) 및 유지요법(지속성, 흡입스테로이드와 병용)',
+        adv:'빈맥, 손떨림, 저칼륨혈증(고용량)',
+        caution:'지속성 단독요법은 천식에서 권장되지 않음(반드시 흡입스테로이드 병용)',
+        inter:'베타차단제와 약리학적 길항관계로 효과 상쇄 가능'},
+      {name:'흡입 코르티코스테로이드 (ICS)', examples:['fluticasone','budesonide','beclomethasone'],
+        moa:'기도 국소에서 염증세포 활성과 사이토카인 생성을 억제하여 기도 과민반응을 감소시킨다.',
+        ind:'천식 유지요법의 근간, 중증 COPD 병용',
+        adv:'구강칸디다증, 쉰 목소리(전신흡수는 적어 전신부작용은 상대적으로 적음)',
+        caution:'흡입 후 입안 헹구기로 구강칸디다증 예방',
+        inter:'특별한 전신 상호작용은 적으나 강력한 CYP3A4 억제제(리토나비르 등)와 병용 시 전신흡수 증가 가능'},
+      {name:'항콜린제 (흡입)', examples:['ipratropium (속효성)','tiotropium (지속성)'],
+        moa:'기관지 평활근의 무스카린(M3) 수용체를 차단하여 미주신경 매개 기관지수축을 억제한다.',
+        ind:'COPD 유지요법(1차 선택군 중 하나), 천식 보조요법',
+        adv:'구갈, 드물게 요저류·안압상승(폐쇄각녹내장 환자 주의)',
+        caution:'폐쇄각녹내장·전립선비대증 환자 신중 투여',
+        inter:'다른 항콜린성 약물과 병용 시 항콜린 부작용 상승'},
+      {name:'항히스타민제', examples:['diphenhydramine (1세대)','loratadine, cetirizine, fexofenadine (2세대)'],
+        moa:'H1 수용체를 길항하여 히스타민 매개 알레르기 반응(가려움, 재채기, 콧물)을 억제한다.',
+        ind:'알레르기비염, 두드러기, 1세대는 멀미·수면유도 보조로도 사용',
+        adv:'1세대는 진정작용·항콜린 부작용이 강함, 2세대는 진정작용이 적음',
+        caution:'1세대는 노인에서 항콜린 부작용(인지저하, 요저류) 위험이 높아 사용 자제 권장',
+        inter:'1세대는 다른 중추신경억제제와 병용 시 진정작용 상승'},
+      {name:'류코트리엔 조절제', examples:['montelukast','zafirlukast'],
+        moa:'시스테이닐 류코트리엔 수용체(CysLT1)를 길항하여 기관지수축·점액분비·염증을 억제한다.',
+        ind:'천식 유지요법(경증~중등증), 알레르기비염, 운동유발성 천식 예방',
+        adv:'두통, 드물게 신경정신학적 부작용(기분변화, 악몽) 보고',
+        caution:'신경정신학적 증상 발생 시 즉시 보고하도록 안내',
+        inter:'특별한 주요 약물상호작용은 적음'},
+    ]
+  },
+  {
+    id:'onco', name:'항암제', icon:'✶',
+    desc:'세포독성 항암제부터 표적·면역치료제까지의 약물군',
+    items:[
+      {name:'알킬화제', examples:['cyclophosphamide','cisplatin','oxaliplatin'],
+        moa:'DNA 가닥에 알킬기를 부가하거나 백금이 DNA에 가교결합을 형성해 DNA 복제와 전사를 차단, 세포주기 비특이적으로 작용한다.',
+        ind:'림프종·백혈병(cyclophosphamide), 고환암·난소암·폐암 등 고형암(백금계)',
+        adv:'골수억제, 오심·구토(특히 백금계, 고도 최토성), cisplatin은 신독성·이독성·말초신경병증, cyclophosphamide는 출혈성 방광염',
+        caution:'cyclophosphamide 투여 시 mesna 병용 및 충분한 수액공급으로 방광염 예방, cisplatin은 신기능 모니터링 및 수분공급 필수',
+        inter:'다른 신독성·이독성 약물(아미노글리코사이드)과 병용 시 독성 상승'},
+      {name:'항대사물질', examples:['methotrexate (MTX)','5-fluorouracil (5-FU)','cytarabine'],
+        moa:'엽산대사(MTX, 디하이드로엽산환원효소 억제) 또는 피리미딘 합성(5-FU)을 차단하여 DNA·RNA 합성을 저해한다(세포주기 특이적, S기).',
+        ind:'급성림프모구백혈병, 골육종, 대장암·유방암(5-FU), 류마티스관절염·건선(저용량 MTX)',
+        adv:'골수억제, 점막염, 간독성, 고용량 MTX는 신독성(류코보린 구제요법 병용)',
+        caution:'MTX는 NSAIDs·페니실린계와 병용 시 신배설 저하로 독성 위험 상승, 저용량 MTX도 매주 1회 투여 원칙(매일 투여 시 치명적 독성)',
+        inter:'MTX는 엽산 결핍을 유발하는 약물(트리메토프림 등)과 병용 시 골수억제 위험 상승'},
+      {name:'항종양 항생제', examples:['doxorubicin','bleomycin','mitomycin'],
+        moa:'DNA에 삽입(intercalation)되어 토포이소머라제Ⅱ를 억제하거나 활성산소를 생성해 DNA 가닥을 절단한다.',
+        ind:'유방암, 림프종, 육종 등 다양한 고형암·혈액암',
+        adv:'doxorubicin은 누적용량 의존적 심독성(심근병증), bleomycin은 폐섬유화, 골수억제·탈모 공통',
+        caution:'doxorubicin은 평생 누적용량 제한 및 정기적 심장초음파(LVEF) 모니터링 필요',
+        inter:'다른 심독성 약물(trastuzumab)과 병용 시 심독성 위험 상승'},
+      {name:'식물알칼로이드', examples:['vincristine, vinblastine (빈카알칼로이드)','paclitaxel, docetaxel (탁산계)'],
+        moa:'빈카알칼로이드는 미세소관 중합을 억제, 탁산계는 반대로 미세소관을 과안정화시켜 방추사 형성을 방해함으로써 세포분열(M기)을 저지한다.',
+        ind:'백혈병·림프종(빈카알칼로이드), 유방암·난소암·폐암(탁산계)',
+        adv:'vincristine은 말초신경병증(용량제한독성)이면서 골수억제는 상대적으로 적음, 탁산계는 골수억제·과민반응·말초신경병증',
+        caution:'vincristine은 정맥외 유출 시 심한 조직괴사 유발(vesicant), 절대 척수강내 투여 금지(치명적)',
+        inter:'CYP3A4 억제제와 병용 시 신경독성 등 부작용 증가 가능'},
+      {name:'표적치료제 (TKI 등)', examples:['imatinib (BCR-ABL)','erlotinib (EGFR)','trastuzumab (HER2, 단클론항체)'],
+        moa:'특정 암세포에 과발현·활성화된 신호전달 단백질(티로신인산화효소 등)을 선택적으로 억제하여 정상세포 손상을 줄이면서 종양세포 증식을 차단한다.',
+        ind:'만성골수성백혈병(imatinib), 폐암(erlotinib, EGFR 변이 양성), HER2 양성 유방암(trastuzumab)',
+        adv:'세포독성 항암제보다 전반적으로 부작용이 적으나 표적 특이적 부작용 존재(imatinib: 부종·근육경련, trastuzumab: 심독성)',
+        caution:'trastuzumab 투여 전후 심장기능(LVEF) 평가 필요, 치료 전 표적 바이오마커(BCR-ABL, EGFR, HER2) 확인 필수',
+        inter:'imatinib은 CYP3A4로 대사되어 강력한 유도제·억제제와 상호작용 다수'},
+      {name:'면역관문억제제', examples:['pembrolizumab, nivolumab (PD-1 억제제)','ipilimumab (CTLA-4 억제제)'],
+        moa:'T세포의 면역관문 수용체(PD-1/PD-L1, CTLA-4)를 차단하여 종양에 대한 T세포 매개 면역반응을 활성화시킨다.',
+        ind:'흑색종, 비소세포폐암, 신세포암 등 다양한 고형암',
+        adv:'면역관련 부작용(irAE): 대장염, 폐렴, 갑상선염, 뇌하수체염 등 자가면역성 염증반응',
+        caution:'면역관련 부작용은 투여 후 수개월 뒤에도 발생 가능하므로 장기 모니터링 필요, 중등도 이상 irAE는 전신 스테로이드로 치료',
+        inter:'전신 스테로이드·면역억제제를 예방적으로 병용하면 항암효과가 감소할 수 있어 irAE 치료 목적으로만 사용'},
+      {name:'호르몬요법', examples:['tamoxifen (SERM)','anastrozole (아로마타제 억제제)','leuprolide (GnRH 작용제)'],
+        moa:'tamoxifen은 유방조직 에스트로겐 수용체를 경쟁적으로 차단, anastrozole은 말초 에스트로겐 합성효소(아로마타제)를 억제, leuprolide는 지속 자극으로 뇌하수체 GnRH 수용체를 하향조절해 성선호르몬 분비를 억제한다.',
+        ind:'호르몬수용체 양성 유방암(tamoxifen, anastrozole), 전립선암(leuprolide)',
+        adv:'tamoxifen은 자궁내막암·혈전색전증 위험 증가, anastrozole은 골밀도 감소(폐경후 여성), leuprolide는 초기 일시적 증상악화(flare)',
+        caution:'anastrozole은 폐경 후 여성에서만 사용(폐경 전에는 난소 에스트로겐 생성 보상적 증가), 골밀도 정기 검사 권장',
+        inter:'tamoxifen은 CYP2D6 억제제(일부 SSRI 등)와 병용 시 활성대사체 생성이 저해되어 효과 감소 가능'},
+    ]
+  },
+  {
+    id:'obgyn', name:'산부인과 약물', icon:'♀',
+    desc:'피임, 임신·분만, 여성호르몬 관련 약물군',
+    items:[
+      {name:'복합경구피임제', examples:['ethinylestradiol + levonorgestrel','ethinylestradiol + drospirenone'],
+        moa:'에스트로겐·프로게스틴 복합제가 시상하부-뇌하수체 축을 억제해 배란을 차단하고, 자궁경부점액을 점조화하며 자궁내막을 착상에 부적합하게 변화시킨다.',
+        ind:'피임, 월경통·월경과다 조절, 다낭성난소증후군 증상 완화',
+        adv:'정맥혈전색전증 위험 증가(특히 흡연자·35세 이상), 오심, 유방압통, 부정출혈',
+        caution:'흡연자(35세 이상)·혈전병력·편두통(조짐 동반)·조절되지 않는 고혈압 환자는 금기',
+        inter:'rifampin·일부 항경련제(CYP450 유도제) 병용 시 피임 효과 감소 가능, 광범위항생제 병용 시 이론적 효과 저하 우려로 보조피임법 권장하기도 함'},
+      {name:'프로게스틴 단일제', examples:['미니필 (norethindrone)','depot medroxyprogesterone acetate (DMPA, 주사제)','levonorgestrel 자궁내장치'],
+        moa:'프로게스틴 단독으로 자궁경부점액을 점조화하고 자궁내막을 변화시키며, 고용량에서는 배란도 억제한다.',
+        ind:'에스트로겐 금기 환자(수유부, 혈전병력)의 피임',
+        adv:'불규칙한 부정출혈, DMPA 장기 사용 시 골밀도 감소',
+        caution:'DMPA 중단 후 배란 회복까지 수개월 소요될 수 있음을 상담 시 안내',
+        inter:'CYP450 유도제 병용 시 효과 감소 가능'},
+      {name:'자궁수축제', examples:['oxytocin','misoprostol (프로스타글란딘 E1 유사체)','methylergonovine'],
+        moa:'자궁 평활근의 옥시토신 수용체를 자극(oxytocin)하거나 프로스타글란딘 수용체를 통해 자궁 수축을 유도하여 분만 유도 및 산후출혈을 조절한다.',
+        ind:'분만 유도·촉진, 산후출혈 예방 및 치료, 유산 유도(misoprostol)',
+        adv:'과도한 자궁수축(자궁파열 위험), 태아 저산소증, methylergonovine은 고혈압 위기 위험',
+        caution:'oxytocin 투여 중 태아심박수·자궁수축 지속 모니터링 필수, methylergonovine은 고혈압·자간전증 환자 금기',
+        inter:'혈관수축제와 methylergonovine 병용 시 심한 고혈압 위험'},
+      {name:'조기진통 억제제 (자궁이완제)', examples:['nifedipine (CCB)','magnesium sulfate','indomethacin (단기)'],
+        moa:'nifedipine은 자궁평활근 칼슘통로 차단으로 이완, magnesium sulfate는 신경근 흥분성을 감소시켜 자궁수축 및 경련을 억제한다.',
+        ind:'조기진통 억제(태아 폐성숙을 위한 스테로이드 투여 시간 확보 목적), 자간전증 경련 예방(magnesium sulfate)',
+        adv:'magnesium sulfate 과량 시 호흡억제·심정지(건반사 소실이 초기 경고징후), nifedipine은 저혈압·두통',
+        caution:'magnesium sulfate 투여 중 건반사·호흡수·소변량 모니터링 필수, 해독제로 calcium gluconate 상비',
+        inter:'magnesium sulfate와 CCB 병용 시 저혈압·신경근차단 상승작용'},
+      {name:'폐경기 호르몬요법 (MHT/HRT)', examples:['estradiol (경구/경피)','estrogen + progestogen 복합제(자궁 있는 경우)'],
+        moa:'폐경으로 저하된 에스트로겐을 보충하여 혈관운동증상(안면홍조)·비뇨생식기 위축 증상을 완화한다.',
+        ind:'중등도~중증 폐경기 혈관운동증상, 비뇨생식기 위축 증상, 조기폐경 여성의 골다공증 예방',
+        adv:'정맥혈전색전증·뇌졸중 위험 증가, 자궁이 있는 경우 에스트로겐 단독요법은 자궁내막암 위험 증가(프로게스토겐 병용 필요)',
+        caution:'유방암·자궁내막암·혈전병력 환자 금기, 최소 유효용량으로 최단기간 사용 권장',
+        inter:'CYP450 유도제(rifampin, 일부 항경련제) 병용 시 에스트로겐 효과 감소'},
+      {name:'임신 중 주의·금기 약물', examples:['ACE억제제/ARB','warfarin','isotretinoin','발프로산','일부 항생제(테트라사이클린, 퀴놀론)'],
+        moa:'해당사항 없음 — 약리기전이 아닌 임신 중 안전성 분류 관점의 요약 항목',
+        ind:'약대생이 조제·복약지도 시 반드시 확인해야 할 임신부 금기·주의 약물 목록',
+        adv:'ACE억제제/ARB는 태아 신장기형, warfarin은 와파린배아병증, isotretinoin은 중증 기형(강력 금기), 발프로산은 신경관결손, 테트라사이클린은 치아착색·뼈성장저해, 퀴놀론은 동물실험상 연골독성으로 신중 투여',
+        caution:'가임기 여성에게 기형유발성 약물 처방 시 반드시 피임 여부 확인 및 상담, 임신 확인 즉시 대체약물 검토',
+        inter:'해당 약물들은 병용보다 임신 사실 자체가 처방 재검토의 트리거가 됨'},
+    ]
+  },
+];
+
+const CONCEPTS = [
+  {term:'흡수 (Absorption)', def:'약물이 투여 부위에서 전신순환으로 이동하는 과정. 경구제는 위장관 pH, 첫통과효과(간대사)의 영향을 크게 받는다.'},
+  {term:'분포 (Distribution) · 분포용적(Vd)', def:'약물이 혈액에서 조직으로 퍼지는 정도. Vd가 크면 지용성이 높거나 조직결합이 많음을 의미하며, 혈액투석 제거 효율과 반비례하는 경향이 있다.'},
+  {term:'대사 (Metabolism)', def:'주로 간의 CYP450 효소계에 의해 약물이 극성화되는 과정(1차 대사: 산화·환원·가수분해, 2차 대사: 포합반응). 유전적 다형성에 따라 대사속도가 개인차를 보인다.'},
+  {term:'배설 (Excretion)', def:'약물 및 대사체가 체외로 제거되는 과정. 대부분 신장(사구체여과·세뇨관분비)을 통하며, 일부는 담즙·호흡을 통해 배설된다.'},
+  {term:'반감기 (t1/2)', def:'혈중 약물농도가 절반으로 감소하는 데 걸리는 시간. 약 4~5회 반감기가 지나면 정상상태(steady state)에 도달한다.'},
+  {term:'청소율 (Clearance)', def:'단위시간당 약물이 완전히 제거되는 혈장의 부피. 유지용량 결정에 핵심적인 지표이며, 신기능·간기능 저하 시 감소한다.'},
+  {term:'생체이용률 (Bioavailability, F)', def:'투여된 약물 중 전신순환에 도달하는 비율. 정맥주사는 F=1(100%)이며, 경구제는 흡수율과 첫통과효과에 따라 낮아질 수 있다.'},
+  {term:'부하용량 · 유지용량', def:'부하용량은 목표 혈중농도에 신속히 도달하기 위한 초회 고용량(Vd에 비례), 유지용량은 정상상태 농도를 유지하기 위한 반복용량(청소율에 비례)이다.'},
+  {term:'치료지수 (Therapeutic Index)', def:'중독량과 유효량의 비율(TD50/ED50). 치료지수가 좁은 약물(디곡신, 와파린, 리튬 등)은 치료약물농도모니터링(TDM)이 특히 중요하다.'},
+  {term:'1차속도론 vs 0차속도론', def:'대부분의 약물은 혈중농도에 비례해 제거되는 1차속도론을 따르나, phenytoin·알코올·고용량 aspirin 등은 대사효소 포화로 일정한 양이 제거되는 0차속도론을 보여 소량 증량에도 농도가 급격히 상승할 수 있다.'},
+  {term:'혈장단백결합률', def:'약물이 알부민 등 혈장단백에 결합하는 비율. 결합률이 높은 약물끼리 병용 시 유리형 약물이 급증하는 치환 상호작용이 발생할 수 있다(예: 와파린-NSAIDs).'},
+  {term:'효능제·길항제, 효력·효능', def:'효능제(agonist)는 수용체를 활성화, 길항제(antagonist)는 활성화 없이 결합만 하여 내인성 리간드를 차단한다. 효력(potency)은 동일 효과를 내는 데 필요한 용량, 효능(efficacy)은 도달 가능한 최대 반응 크기를 의미한다.'},
+];
+
+const INTERACTIONS = [
+  {a:'와파린', b:'NSAIDs', effect:'혈소판기능 저하 + 단백결합 치환으로 출혈 위험 크게 증가', sev:'high'},
+  {a:'와파린', b:'플루코나졸 / 메트로니다졸', effect:'CYP2C9 억제로 INR 급상승, 출혈 위험 증가', sev:'high'},
+  {a:'SSRI', b:'MAOI', effect:'세로토닌 증후군(고열, 근경직, 자율신경 불안정) — 병용 금기', sev:'high'},
+  {a:'오피오이드', b:'벤조디아제핀', effect:'중추신경·호흡 억제작용의 상승, 호흡정지 위험', sev:'high'},
+  {a:'스타틴', b:'clarithromycin / 그레이프프루트주스', effect:'CYP3A4 억제로 스타틴 혈중농도 상승, 횡문근융해증 위험', sev:'high'},
+  {a:'메토트렉세이트', b:'NSAIDs', effect:'신세뇨관 분비 경쟁으로 메토트렉세이트 배설 저하, 골수억제 등 독성 증가', sev:'high'},
+  {a:'ACE 억제제 / ARB', b:'스피로놀락톤 (칼륨보존이뇨제)', effect:'고칼륨혈증 위험 상승, 부정맥 유발 가능', sev:'mid'},
+  {a:'디곡신', b:'루프·티아지드 이뇨제', effect:'이뇨제 유발 저칼륨혈증이 디곡신 독성(부정맥) 위험을 높임', sev:'mid'},
+  {a:'베타차단제', b:'verapamil / diltiazem', effect:'방실전도 억제의 상승작용으로 심한 서맥·방실차단', sev:'mid'},
+  {a:'플루오로퀴놀론', b:'제산제 / 철분제 / 칼슘제', effect:'킬레이트 형성으로 퀴놀론 흡수 저하(2시간 이상 간격 필요)', sev:'mid'},
+  {a:'테트라사이클린', b:'유제품 / 칼슘·마그네슘', effect:'킬레이트 형성으로 흡수 저하', sev:'mid'},
+  {a:'clopidogrel', b:'omeprazole', effect:'CYP2C19 억제로 clopidogrel 활성화 저하, 항혈소판 효과 감소 우려', sev:'mid'},
+];
+
+const ABBR = [
+  {a:'PO', b:'경구 투여 (per os)'},{a:'IV', b:'정맥 주사'},{a:'IM', b:'근육 주사'},
+  {a:'SC / SQ', b:'피하 주사'},{a:'SL', b:'설하 투여'},{a:'PR', b:'직장 투여'},
+  {a:'qd / QD', b:'하루 1회'},{a:'bid', b:'하루 2회'},{a:'tid', b:'하루 3회'},
+  {a:'qid', b:'하루 4회'},{a:'q4h / q6h', b:'4시간/6시간마다'},{a:'prn', b:'필요 시'},
+  {a:'ac', b:'식전 (ante cibum)'},{a:'pc', b:'식후 (post cibum)'},{a:'hs', b:'취침 전 (hora somni)'},
+  {a:'stat', b:'즉시 투여'},{a:'NPO', b:'금식'},{a:'gtt', b:'점적 / 방울'},
+  {a:'susp.', b:'현탁액'},{a:'ung.', b:'연고'},
+];
+
+const PROTOCOLS = [
+  {name:'고혈압 치료 알고리즘', overview:'혈압 수치와 동반질환에 따라 1차 약물군을 선택하고, 목표혈압 미도달 시 병용요법으로 단계적으로 강화한다.',
+    steps:[
+      {t:'생활습관 교정', d:'모든 단계에서 병행: 저염식, 체중감량, 규칙적 운동, 금연·절주'},
+      {t:'1차 약물 선택', d:'ACE억제제/ARB, 칼슘채널차단제(CCB), 티아지드계 이뇨제 중 동반질환을 고려하여 선택 (당뇨병성 신증 → ACE억제제/ARB 우선)'},
+      {t:'목표혈압 미도달 시 2제 병용', d:'서로 다른 기전의 약물 2가지 병용 (예: ACE억제제 + CCB, 또는 ACE억제제 + 이뇨제)'},
+      {t:'3제 병용', d:'ACE억제제/ARB + CCB + 이뇨제 3제 병용'},
+      {t:'저항성 고혈압', d:'스피로놀락톤 추가 또는 전문의 의뢰(이차성 고혈압 감별 포함)'},
+    ],
+    drugs:'ACE억제제/ARB, CCB, 티아지드계 이뇨제, 베타차단제(특정 적응증)',
+    caution:'ACE억제제와 ARB는 병용하지 않음(상승적 신기능 저하·고칼륨혈증), 임신부는 ACE억제제/ARB 금기'},
+  {name:'제2형 당뇨병 치료 알고리즘', overview:'생활습관 교정과 함께 metformin을 1차로 시작하고, 혈당목표 미도달 시 환자의 동반질환(심혈관질환, 신질환, 비만 등)에 맞춰 병용약물을 추가한다.',
+    steps:[
+      {t:'1차 요법', d:'metformin + 생활습관 교정(식이, 운동, 체중관리)에서 시작'},
+      {t:'동반질환 고려한 2차 약물 추가', d:'죽상경화성 심혈관질환·심부전 동반 시 SGLT2 억제제 또는 GLP-1 수용체작용제 우선 고려'},
+      {t:'혈당목표 미도달 시 병용 강화', d:'DPP-4 억제제, 설포닐우레아, 티아졸리딘디온 등을 환자별 저혈당 위험·체중영향 고려해 추가'},
+      {t:'인슐린 요법 전환', d:'경구제 병용으로도 목표(HbA1c) 미도달 또는 증상성 고혈당 시 기저인슐린 도입'},
+    ],
+    drugs:'metformin, SGLT2 억제제, GLP-1 수용체작용제, DPP-4 억제제, 설포닐우레아, 인슐린',
+    caution:'metformin은 신기능 저하(eGFR<30)·조영제 검사 전후 중단 고려, 저혈당 위험약물(설포닐우레아, 인슐린) 사용 시 환자 교육 필수'},
+  {name:'지역사회획득폐렴(CAP) 경험적 치료', overview:'중증도(외래/입원/중환자실)에 따라 경험적 항생제 선택이 달라지며, 원인균 확인 전 비정형 병원체까지 커버하는 것이 원칙이다.',
+    steps:[
+      {t:'중증도 평가', d:'CURB-65 등 중증도 점수로 외래/일반병동/중환자실 치료 여부 결정'},
+      {t:'외래 치료 (기저질환 없는 건강한 성인)', d:'amoxicillin 또는 마크로라이드계(azithromycin) 단독요법'},
+      {t:'입원 치료 (일반병동)', d:'베타락탐계(ceftriaxone 등) + 마크로라이드계 병용, 또는 호흡기 플루오로퀴놀론 단독'},
+      {t:'중환자실 치료', d:'베타락탐계 + 마크로라이드계 병용이 원칙, 녹농균 위험인자 있으면 항녹농균 베타락탐으로 확대'},
+      {t:'치료 반응 평가 및 표적치료 전환', d:'배양 결과 확인 후 원인균에 맞춰 항생제 범위를 좁힘(de-escalation)'},
+    ],
+    drugs:'amoxicillin, azithromycin/clarithromycin, ceftriaxone, 호흡기 플루오로퀴놀론(levofloxacin, moxifloxacin)',
+    caution:'항생제는 배양결과 확인 후 최대한 좁은 스펙트럼으로 조정(항생제 스튜어드십), 퀴놀론 단독요법은 결핵 미진단 시 결핵균 부분치료로 진단 지연 위험 있어 주의'},
+  {name:'급성 관상동맥증후군 초기 관리', overview:'흉통 발생 시 신속한 진단과 함께 항혈소판·항응고·재관류 치료를 병행하는 것이 핵심이다.',
+    steps:[
+      {t:'초기 평가', d:'심전도(ST분절 변화 확인), 심근효소(트로포닌) 측정, 활력징후 모니터링'},
+      {t:'즉각적 약물치료 (MONA 변형)', d:'aspirin 씹어서 복용(항혈소판), 니트로글리세린(흉통 완화), 필요 시 산소·모르핀'},
+      {t:'이중항혈소판요법 추가', d:'aspirin + clopidogrel/ticagrelor 병용, 항응고제(heparin) 병용'},
+      {t:'재관류 치료 결정', d:'STEMI는 즉시 경피적관상동맥중재술(PCI) 또는 혈전용해제, NSTEMI는 위험도에 따라 조기 침습적 전략 고려'},
+      {t:'2차 예방 약물 도입', d:'베타차단제, 스타틴(고강도), ACE억제제, 이중항혈소판요법 유지(통상 12개월)'},
+    ],
+    drugs:'aspirin, clopidogrel/ticagrelor, heparin, 베타차단제, 고강도 스타틴, ACE억제제',
+    caution:'니트로글리세린은 PDE5 억제제(실데나필 등) 최근 복용 시 병용 금기(심한 저혈압), 혈전용해제는 출혈 위험으로 금기사항 확인 필수'},
+  {name:'천식 단계별 치료 (GINA 개요)', overview:'증상 빈도와 조절 정도에 따라 흡입치료를 단계적으로 강화하며, 모든 단계에서 흡입스테로이드 기반 치료가 핵심이다.',
+    steps:[
+      {t:'경증 간헐성', d:'증상 발생 시에만 저용량 ICS-포르모테롤 또는 속효성 베타2작용제 사용'},
+      {t:'경증 지속성', d:'저용량 흡입스테로이드(ICS) 유지요법 + 필요 시 속효성 베타2작용제'},
+      {t:'중등증 지속성', d:'저용량 ICS + 지속성 베타2작용제(LABA) 병용 유지요법'},
+      {t:'중증 지속성', d:'중~고용량 ICS-LABA, 필요 시 티오트로피움 추가 또는 생물학적제제(중증 알레르기성/호산구성 천식) 고려'},
+      {t:'경구 스테로이드', d:'최후 수단으로 최소 유효용량 단기 사용, 장기 사용은 부작용으로 인해 최대한 회피'},
+    ],
+    drugs:'ICS(budesonide, fluticasone), LABA(formoterol, salmeterol), 류코트리엔 조절제, 생물학적제제(omalizumab 등)',
+    caution:'LABA는 반드시 ICS와 병용(LABA 단독요법은 금기, 천식 관련 사망 위험 증가 보고), 속효성 베타2작용제 과다 사용은 조절 불량의 경고신호'},
+  {name:'아나필락시스 응급처치', overview:'급성 중증 알레르기반응은 수분 내 기도폐쇄·쇼크로 진행할 수 있어 에피네프린 즉시 투여가 최우선이다.',
+    steps:[
+      {t:'즉시 에피네프린 근육주사', d:'대퇴부 외측광근에 1:1000 에피네프린 근육주사(성인 0.3~0.5mg), 지체 없이 최우선 시행'},
+      {t:'기도·호흡·순환 확보', d:'앙와위 및 다리 거상, 필요 시 산소공급, 정맥로 확보 및 수액 투여(저혈압 동반 시)'},
+      {t:'추가 약물 투여', d:'항히스타민제(diphenhydramine)와 전신 스테로이드는 보조요법이며 에피네프린을 대체할 수 없음'},
+      {t:'반응 평가 및 재투여', d:'5~15분 내 증상 호전 없으면 에피네프린 재투여, 이상성 반응(biphasic reaction) 대비 수 시간 관찰'},
+    ],
+    drugs:'epinephrine(1차, 필수), diphenhydramine, methylprednisolone(보조)',
+    caution:'베타차단제 복용 중인 환자는 에피네프린 반응이 저하될 수 있어 글루카곤 투여 고려, 항히스타민제·스테로이드만으로 치료 지연 금지'},
+];
+
+const POPULATIONS = [
+  {
+    id:'pedi', name:'소아과 용량조절', icon:'◒',
+    overview:'소아는 성인의 축소판이 아니다. 연령대별 장기 성숙도(간효소 발현, 사구체여과율, 체수분 비율)가 크게 달라 동일 약물이라도 체중당 청소율·분포용적이 성인과 다르게 나타난다. 용량은 원칙적으로 체중(mg/kg) 또는 체표면적(BSA) 기준으로 계산하되, 성인 최대용량을 넘지 않도록 반드시 상한을 확인한다.',
+    principles:[
+      {t:'체중·체표면적 기반 계산', d:'대부분 mg/kg으로 계산하며, 항암제 등 일부는 체표면적(BSA, mg/m²) 기준을 사용한다. 계산된 용량이 성인 최대용량을 초과하지 않는지 항상 확인한다.'},
+      {t:'신생아기의 미성숙한 대사·배설', d:'글루쿠론산抱합 등 일부 2차 대사 효소와 사구체여과율이 미성숙하여 약물 반감기가 성인보다 크게 연장될 수 있다(예: chloramphenicol의 gray baby syndrome).'},
+      {t:'영유아기의 높은 체수분 비율', d:'세포외액 비율이 높아 수용성 약물의 분포용적(Vd)이 상대적으로 커지므로, 초기 부하용량이 체중당 성인보다 높게 필요한 경우가 있다.'},
+      {t:'소아·청소년기의 상대적으로 빠른 대사', d:'일부 연령대에서는 간효소 활성이 오히려 성인보다 높아 체중당 요구용량이 성인보다 많을 수 있다(예: 항경련제 일부).'},
+      {t:'제형·복약순응도 고려', d:'액상 제제는 반드시 계량컵·경구용 주사기 등 정확한 계량 도구를 사용하도록 지도하며, 정제 분할 시 균등성 문제를 설명한다.'},
+    ],
+    table:{cols:['약물/약물군','소아 관련 핵심 고려사항'], rows:[
+      ['aspirin','16세 미만에서 수두·인플루엔자 등 바이러스 감염 동반 시 라이증후군(Reye 증후군) 위험으로 금기'],
+      ['tetracycline계','8세 미만에서 치아 착색·뼈 성장 저해 위험으로 금기(대체 항생제 우선 고려)'],
+      ['fluoroquinolone계','동물실험상 관절연골 손상 보고로 특정 적응증(다제내성균 감염 등) 외에는 소아 신중 투여'],
+      ['codeine, tramadol','CYP2D6 초고속대사자에서 모르핀 급속 축적으로 치명적 호흡억제 사례 보고, 18세 미만 사용 금기(특히 편도선/아데노이드 절제술 후)'],
+      ['chloramphenicol','신생아의 미성숙한 글루쿠론산抱합 능력으로 인해 gray baby syndrome(순환허탈) 위험'],
+      ['acetaminophen','체중 기반 정확한 용량계산이 특히 중요하며(과량 시 간독성), 소아용 제형별 농도 차이로 인한 투약오류에 주의'],
+    ]}
+  },
+  {
+    id:'geri', name:'노인 약물주의', icon:'◔',
+    overview:'노인은 다약제복용(polypharmacy), 나이에 따른 생리적 변화, 약물 민감도 증가로 인해 이상반응 위험이 젊은 성인보다 훨씬 높다. 혈청 크레아티닌이 정상범위여도 근육량 감소로 실제 사구체여과율은 낮은 경우가 많아 Cockcroft-Gault 등으로 신기능을 재평가해야 한다. Beers Criteria 등 노인 부적절약물 목록을 참고하여 정기적으로 처방을 재검토(deprescribing)한다.',
+    principles:[
+      {t:'"Start low, go slow"', d:'신약 도입 시 저용량으로 시작해 효과와 내약성을 확인하며 서서히 증량한다.'},
+      {t:'다약제복용 정기 검토', d:'복용 약물 목록을 주기적으로 재검토하여 적응증이 불분명하거나 처방연쇄(prescribing cascade)로 추가된 약물을 정리한다.'},
+      {t:'항콜린성 부담 누적 주의', d:'여러 약물의 항콜린 작용이 누적되면 인지기능저하·섬망·낙상 위험이 크게 증가한다(항히스타민제, 삼환계 항우울제, 일부 요실금약물 등).'},
+      {t:'신기능의 과대평가 주의', d:'근육량 감소로 혈청 크레아티닌이 정상이어도 실제 사구체여과율은 낮을 수 있어, 반드시 크레아티닌청소율(Cockcroft-Gault) 등으로 재평가한다.'},
+      {t:'낙상 위험 약물 주의', d:'진정제, 강압제, 저혈당 유발제는 기립성저혈압·어지러움을 유발해 낙상·골절로 이어질 수 있다.'},
+    ],
+    table:{cols:['약물/약물군','노인에서의 주의사항'], rows:[
+      ['벤조디아제핀계(전 종류)','인지기능저하, 섬망, 낙상·골절 위험 증가로 가능한 회피 — Beers Criteria 회피 권고 약물'],
+      ['1세대 항히스타민제(diphenhydramine)','강한 항콜린작용으로 인지기능저하·요저류 위험, 수면유도 목적 사용 회피'],
+      ['삼환계 항우울제','항콜린작용·기립성저혈압으로 낙상 위험 상승, 노인 우울증 1차 약물로 비권장'],
+      ['설포닐우레아(특히 glyburide)','반감기가 길어 저혈당이 장시간 지속될 수 있어 회피, 사용 시 단시간형 제제 선호'],
+      ['NSAIDs(만성 사용)','위장관 출혈, 신기능 저하, 심혈관 위험 상승 — 만성 통증에 장기 사용 회피'],
+      ['근이완제(cyclobenzaprine 등)','진정작용·항콜린작용이 강하고 효과는 제한적이어서 노인에서 위험 대비 이득이 낮음'],
+    ]}
+  },
+  {
+    id:'renal', name:'신장애 환자 용량조절', icon:'◑',
+    overview:'신장으로 배설되는 약물이나 활성대사체는 신기능 저하 시 청소율이 감소해 축적·독성 위험이 커진다. Cockcroft-Gault 공식 등으로 크레아티닌청소율(CrCl)을 추정한 뒤, 용량감량 또는 투여간격 연장 중 하나(또는 병행)로 조절한다. 신독성 약물의 병용은 가능한 피한다.',
+    principles:[
+      {t:'용량감량 vs 투여간격 연장', d:'혈중농도의 급격한 변동을 피하려면 1회 용량을 줄이거나, 최고농도를 유지하려면 투여간격을 늘리는 전략 중 약물 특성에 맞게 선택한다.'},
+      {t:'신독성 약물 병용 회피', d:'NSAIDs, 아미노글리코사이드, 조영제 등 신독성 약물을 함께 사용하면 신기능이 추가로 악화될 수 있어 병용을 최소화한다.'},
+      {t:'활성대사체의 축적 확인', d:'모약물 자체는 간대사이더라도 신배설 활성대사체가 있는 경우(예: morphine-6-glucuronide) 신부전에서 독성이 누적될 수 있다.'},
+      {t:'투석 가능 여부(dialyzability) 확인', d:'혈액투석 환자는 약물이 투석으로 제거되는지에 따라 투석 후 추가 투여 여부를 결정해야 한다.'},
+    ],
+    table:{cols:['약물/약물군','신기능 저하 시 조절 포인트'], rows:[
+      ['metformin','eGFR 30 미만 금기(젖산산증 위험), 30~45에서는 신중 투여 및 감량 고려'],
+      ['aminoglycoside계(gentamicin 등)','치료역이 좁아 반드시 치료약물농도모니터링(TDM) 시행, 신기능에 따라 투여간격 연장'],
+      ['digoxin','거의 전량 신배설되므로 중등도 이상 신부전에서 용량을 큰 폭으로 감량하고 혈중농도 모니터링'],
+      ['저분자량헤파린(enoxaparin)','중증 신부전(CrCl<30)에서 축적 위험으로 용량감량 또는 미분획헤파린으로 대체 고려'],
+      ['gabapentin, pregabalin','거의 전량 신배설되어 CrCl에 따라 단계적으로 용량을 감량해야 함'],
+      ['ACE억제제/ARB','중증 신부전에서 고칼륨혈증 위험이 상승하므로 투여 초기 크레아티닌·칼륨을 모니터링'],
+    ]}
+  },
+  {
+    id:'hepat', name:'간장애 환자 용량조절', icon:'◒',
+    overview:'간에서 대사되는 약물은 간기능 저하 시 청소율이 감소해 축적 위험이 커진다. Child-Pugh 분류(A/B/C)로 중증도를 평가하며, 저알부민혈증이 동반되면 단백결합률이 높은 약물의 유리형(활성형) 농도가 상승할 수 있다. 응고인자 합성 저하로 출혈 경향이 증가하는 점도 함께 고려한다.',
+    principles:[
+      {t:'Child-Pugh 분류로 중증도 평가', d:'빌리루빈, 알부민, 프로트롬빈시간, 복수, 간성뇌증 정도를 종합해 A(경증)~C(중증)로 분류하고 이에 따라 용량을 조절한다.'},
+      {t:'첫통과효과가 큰 약물의 생체이용률 증가', d:'간경변에서는 문맥전신단락으로 인해 첫통과 대사가 큰 경구약물의 전신 노출이 오히려 증가할 수 있다.'},
+      {t:'저알부민혈증에 따른 유리형 약물 증가', d:'단백결합률이 높은 약물은 결합할 알부민이 부족해 유리형(활성형) 농도가 상승, 동일 총농도에서도 효과·독성이 커질 수 있다.'},
+      {t:'응고인자 합성 저하로 출혈 경향 증가', d:'간에서 합성되는 응고인자가 줄어들어 항응고제·항혈소판제 사용 시 출혈 위험 재평가가 필요하다.'},
+      {t:'간성뇌증 위험군의 진정제 사용 주의', d:'벤조디아제핀·오피오이드 등 중추신경억제제는 간성뇌증을 악화시키거나 증상을 가릴 수 있어 신중히 투여한다.'},
+    ],
+    table:{cols:['약물/약물군','간장애 시 조절 포인트'], rows:[
+      ['acetaminophen','중증 간질환·알코올 남용자에서 1일 최대용량을 낮추어 사용, 과량 시 간독성 위험이 특히 큼'],
+      ['morphine','간대사 저하로 축적될 수 있어 저용량으로 시작하고 반응을 보며 조절'],
+      ['스타틴','활성 간질환·원인불명 간효소 상승 시 상대적 금기, 정기적 간기능검사 권장'],
+      ['벤조디아제핀계','산화적 대사 의존 약물(diazepam 등)은 축적 위험이 커서, 포합대사 위주인 lorazepam·oxazepam·temazepam("LOT" 약물)을 선호'],
+      ['rifampin, isoniazid','간독성 위험이 상승하므로 치료 중 정기적 간기능검사 필요'],
+      ['warfarin','간에서 합성되는 응고인자 자체가 감소해 있어 정상 간기능 대비 약효에 더 민감, 저용량 시작 및 INR 모니터링 강화'],
+    ]}
+  },
+];
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+function navHtml(){
+  return CATEGORIES.map(c => `
+    <div class="nav-item" data-view="cat:${c.id}">
+      <span>${c.icon}&nbsp; ${c.name}</span>
+      <span class="count">${c.items.length}</span>
+    </div>`).join('');
+}
+
+function heroHtml(){
+  const totalDrugs = CATEGORIES.reduce((s,c)=>s+c.items.length,0);
+  return `
+  <div class="hero">
+    <h1>약전람</h1>
+    <p>약대생의 학습을 돕기 위해 계열별 약물, 질환별 치료 알고리즘, 특수 집단(소아·노인·신장애·간장애) 용량조절, 약동학·약력학 핵심개념, 임상적으로 중요한 약물상호작용, 처방 약어를 한 곳에 정리한 학습 참조노트입니다. 각 항목은 시험·실습 전 빠른 복습용으로 구성했습니다.</p>
+    <div class="hero-stats">
+      <div><b>${CATEGORIES.length}</b>약물 계열 대분류</div>
+      <div><b>${totalDrugs}</b>약물군 요약</div>
+      <div><b>${PROTOCOLS.length}</b>질환별 치료 알고리즘</div>
+      <div><b>${POPULATIONS.length}</b>특수 집단 가이드</div>
+      <div><b>${CONCEPTS.length}</b>PK·PD 핵심개념</div>
+      <div><b>${INTERACTIONS.length}</b>주요 상호작용</div>
+    </div>
+  </div>`;
+}
+
+function monoCard(item, catName){
+  return `
+  <div class="mono-card">
+    <div class="mono-tab">${catName}</div>
+    <h3>${item.name}</h3>
+    <div class="mono-examples">${item.examples.map(e=>`<span>${e}</span>`).join('')}</div>
+    <div class="mono-field"><div class="flabel moa"><i></i>작용기전</div><div class="ftext">${item.moa}</div></div>
+    <div class="mono-field"><div class="flabel ind"><i></i>적응증</div><div class="ftext">${item.ind}</div></div>
+    <div class="mono-field"><div class="flabel adv"><i></i>주요 부작용</div><div class="ftext">${item.adv}</div></div>
+    <div class="mono-field"><div class="flabel caution"><i></i>주의·금기</div><div class="ftext">${item.caution}</div></div>
+    <div class="mono-field"><div class="flabel inter"><i></i>상호작용</div><div class="ftext">${item.inter}</div></div>
+  </div>`;
+}
+
+function renderCategory(catId){
+  const cat = CATEGORIES.find(c=>c.id===catId);
+  const main = $('#main');
+  main.innerHTML = `
+    <div class="section-head">
+      <h2>${cat.icon}&nbsp; ${cat.name}</h2>
+      <p>${cat.desc} · 총 ${cat.items.length}개 약물군</p>
+    </div>
+    <div class="mono-list">${cat.items.map(i=>monoCard(i, cat.name)).join('')}</div>
+  `;
+}
+
+function protoCard(p){
+  return `
+  <div class="proto-card">
+    <h3>${p.name}</h3>
+    <div class="proto-overview">${p.overview}</div>
+    <ol class="proto-steps">
+      ${p.steps.map(s=>`<li><b>${s.t}</b> — ${s.d}</li>`).join('')}
+    </ol>
+    <div class="proto-foot">
+      <div><div class="flabel-sm drugs"><i></i>핵심 약물</div>${p.drugs}</div>
+      <div><div class="flabel-sm caution"><i></i>주의사항</div>${p.caution}</div>
+    </div>
+  </div>`;
+}
+
+function renderProtocols(){
+  $('#main').innerHTML = `
+    <div class="section-head">
+      <h2>질환별 치료 알고리즘</h2>
+      <p>대표적인 질환에서 약물치료가 단계적으로 어떻게 강화·전환되는지 정리한 요약 프로토콜 ${PROTOCOLS.length}가지</p>
+    </div>
+    ${PROTOCOLS.map(protoCard).join('')}
+  `;
+}
+
+function navPopulationsHtml(){
+  return POPULATIONS.map(p => `
+    <div class="nav-item" data-view="pop:${p.id}">
+      <span>${p.icon}&nbsp; ${p.name}</span>
+    </div>`).join('');
+}
+
+function renderPopulation(id){
+  const p = POPULATIONS.find(x=>x.id===id);
+  $('#main').innerHTML = `
+    <div class="section-head">
+      <h2>${p.icon}&nbsp; ${p.name}</h2>
+    </div>
+    <div class="pop-overview">${p.overview}</div>
+    <ul class="prin-list">
+      ${p.principles.map(pr=>`<li><i></i><div><b>${pr.t}</b> — ${pr.d}</div></li>`).join('')}
+    </ul>
+    <div class="pop-table-head">대표 약물 및 조절 포인트</div>
+    <table>
+      <thead><tr>${p.table.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${p.table.rows.map(r=>`<tr>${r.map((cell,i)=>`<td${i===0?' style="font-weight:600; white-space:nowrap;"':''}>${cell}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderConcepts(){
+  $('#main').innerHTML = `
+    <div class="section-head">
+      <h2>약동학 · 약력학 핵심개념</h2>
+      <p>시험 및 임상 추론에서 반복적으로 등장하는 기본 개념 ${CONCEPTS.length}가지</p>
+    </div>
+    <div class="concept-grid">
+      ${CONCEPTS.map(c=>`<div class="concept-card"><h4>${c.term}</h4><p>${c.def}</p></div>`).join('')}
+    </div>
+  `;
+}
+
+function renderInteractions(){
+  $('#main').innerHTML = `
+    <div class="section-head">
+      <h2>주요 약물상호작용</h2>
+      <p>임상적으로 중요도가 높아 반드시 숙지해야 할 상호작용 ${INTERACTIONS.length}가지</p>
+    </div>
+    <table>
+      <thead><tr><th>약물 A</th><th>약물 B</th><th>영향</th><th>중요도</th></tr></thead>
+      <tbody>
+        ${INTERACTIONS.map(r=>`
+          <tr>
+            <td>${r.a}</td>
+            <td>${r.b}</td>
+            <td>${r.effect}</td>
+            <td><span class="sev ${r.sev}">${r.sev==='high'?'높음':'중등도'}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderAbbr(){
+  $('#main').innerHTML = `
+    <div class="section-head">
+      <h2>처방 약어 사전</h2>
+      <p>처방전·투약지시에서 자주 쓰이는 약어 ${ABBR.length}가지</p>
+    </div>
+    <div class="abbr-grid">
+      ${ABBR.map(r=>`<div class="abbr-row"><span class="a">${r.a}</span><span class="b">${r.b}</span></div>`).join('')}
+    </div>
+  `;
+}
+
+function renderHome(){
+  $('#main').innerHTML = heroHtml() + `
+    <div class="section-head">
+      <h2>둘러보기</h2>
+      <p>왼쪽 메뉴에서 계열을 선택하거나, 상단 검색창으로 원하는 약물·개념을 바로 찾아보세요.</p>
+    </div>
+    <div class="mono-list">
+      ${CATEGORIES.map(c=>`
+        <div class="mono-card" style="border-left-color:#5B7FB5; cursor:pointer" data-jump="cat:${c.id}">
+          <div class="mono-tab">${c.items.length}개 약물군</div>
+          <h3>${c.icon}&nbsp; ${c.name}</h3>
+          <div class="ftext" style="color:var(--ink-soft); font-size:14px;">${c.desc} — ${c.items.slice(0,4).map(i=>i.name).join(', ')} 등</div>
+        </div>`).join('')}
+    </div>
+  `;
+  $$('[data-jump]').forEach(el=>el.addEventListener('click', ()=>setView(el.dataset.jump)));
+}
+
+function setView(view){
+  $$('.nav-item').forEach(el=>el.classList.toggle('active', el.dataset.view===view));
+  if(view==='home') renderHome();
+  else if(view==='protocols') renderProtocols();
+  else if(view.startsWith('pop:')) renderPopulation(view.slice(4));
+  else if(view==='concepts') renderConcepts();
+  else if(view==='interactions') renderInteractions();
+  else if(view==='abbr') renderAbbr();
+  else if(view.startsWith('cat:')) renderCategory(view.slice(4));
+  window.scrollTo({top:0,behavior:'instant'});
+  closeSidebarMobile();
+}
+
+/* ---------- search ---------- */
+function buildSearchIndex(){
+  const idx = [];
+  CATEGORIES.forEach(cat=>{
+    cat.items.forEach(item=>{
+      idx.push({
+        type:'drug', view:`cat:${cat.id}`,
+        title:item.name, meta:`${cat.name} · ${item.examples[0]}`,
+        haystack:(item.name+' '+item.examples.join(' ')+' '+item.moa+' '+item.ind+' '+item.adv+' '+item.caution+' '+item.inter).toLowerCase()
+      });
+    });
+  });
+  CONCEPTS.forEach(c=>{
+    idx.push({type:'concept', view:'concepts', title:c.term, meta:'PK·PD 개념', haystack:(c.term+' '+c.def).toLowerCase()});
+  });
+  INTERACTIONS.forEach(r=>{
+    idx.push({type:'inter', view:'interactions', title:`${r.a} + ${r.b}`, meta:'약물상호작용', haystack:(r.a+' '+r.b+' '+r.effect).toLowerCase()});
+  });
+  PROTOCOLS.forEach(p=>{
+    idx.push({type:'proto', view:'protocols', title:p.name, meta:'치료 알고리즘', haystack:(p.name+' '+p.overview+' '+p.drugs+' '+p.steps.map(s=>s.t+' '+s.d).join(' ')).toLowerCase()});
+  });
+  POPULATIONS.forEach(p=>{
+    idx.push({type:'pop', view:`pop:${p.id}`, title:p.name, meta:'특수 집단 고려사항',
+      haystack:(p.name+' '+p.overview+' '+p.principles.map(pr=>pr.t+' '+pr.d).join(' ')+' '+p.table.rows.map(r=>r.join(' ')).join(' ')).toLowerCase()});
+  });
+  return idx;
+}
+const SEARCH_INDEX = buildSearchIndex();
+
+function runSearch(q){
+  const box = $('#searchResults');
+  if(!q.trim()){ box.classList.remove('show'); box.innerHTML=''; return; }
+  const query = q.toLowerCase();
+  const hits = SEARCH_INDEX.filter(i=>i.haystack.includes(query)).slice(0,12);
+  if(hits.length===0){
+    box.innerHTML = `<div class="sr-empty">"${q}"에 대한 결과가 없습니다.</div>`;
+  }else{
+    box.innerHTML = hits.map(h=>`
+      <div class="sr-item" data-view="${h.view}">
+        <div class="sr-name">${h.title}</div>
+        <div class="sr-meta">${h.meta}</div>
+      </div>`).join('');
+  }
+  box.classList.add('show');
+  $$('.sr-item', box).forEach(el=>el.addEventListener('click', ()=>{
+    setView(el.dataset.view);
+    box.classList.remove('show');
+    $('#searchInput').value='';
+  }));
+}
+
+/* ---------- mobile sidebar ---------- */
+function closeSidebarMobile(){
+  $('#sidebar').classList.remove('open');
+  $('#scrim').classList.remove('show');
+}
+
+/* ---------- init ---------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('#nav-categories').innerHTML = navHtml();
+  $('#nav-populations').innerHTML = navPopulationsHtml();
+  $('#cnt-proto').textContent = PROTOCOLS.length;
+  $('#cnt-concepts').textContent = CONCEPTS.length;
+  $('#cnt-inter').textContent = INTERACTIONS.length;
+  $('#cnt-abbr').textContent = ABBR.length;
+
+  $$('.nav-item').forEach(el=>{
+    el.addEventListener('click', ()=>setView(el.dataset.view));
+  });
+
+  $('#searchInput').addEventListener('input', e=>runSearch(e.target.value));
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('.search-wrap')) $('#searchResults').classList.remove('show');
+  });
+
+  $('#menuBtn').addEventListener('click', ()=>{
+    $('#sidebar').classList.add('open');
+    $('#scrim').classList.add('show');
+  });
+  $('#scrim').addEventListener('click', closeSidebarMobile);
+
+  renderHome();
+});
+</script>
+</body>
+</html>

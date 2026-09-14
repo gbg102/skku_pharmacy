@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-14T14:32:45.815Z",
+  "timetableEvents": [
+    {
+      "id": "b_1789304121473",
+      "name": "생약학1",
+      "day": 0,
+      "startId": 2,
+      "endId": 2,
+      "color": "#68d391",
+      "custom": false
+    },
+    {
+      "id": "b_1789304123301",
+      "name": "의약품합성학1",
+      "day": 1,
+      "startId": 3,
+      "endId": 3,
+      "color": "#ed8936",
+      "custom": false
+    },
+    {
+      "id": "b_1789304125191",
+      "name": "약리학1",
+      "day": 2,
+      "startId": 2,
+      "endId": 2,
+      "color": "#9f7aea",
+      "custom": false
+    },
+    {
+      "id": "b_1789304127230",
+      "name": "병태생리학1",
+      "day": 3,
+      "startId": 4,
+      "endId": 4,
+      "color": "#fc8181",
+      "custom": false
+    },
+    {
+      "id": "b_1789304151518",
+      "name": "알바",
+      "day": 1,
+      "startId": 11,
+      "endId": 13,
+      "color": "#718096",
+      "custom": true
+    },
+    {
+      "id": "b_1789304162639",
+      "name": "알바",
+      "day": 3,
+      "startId": 11,
+      "endId": 13,
+      "color": "#718096",
+      "custom": true
+    }
+  ],
+  "selectedCareer": "industry",
+  "selectedMilitary": "pharm_officer",
+  "enrolledCourses": [
+    {
+      "id": "e211",
+      "title": "생약학1",
+      "credit": 3,
+      "color": "#68d391",
+      "grades": [
+        "2-2"
+      ]
+    },
+    {
+      "id": "e212",
+      "title": "의약품합성학1",
+      "credit": 3,
+      "color": "#ed8936",
+      "grades": [
+        "2-2"
+      ]
+    },
+    {
+      "id": "e213",
+      "title": "약리학1",
+      "credit": 3,
+      "color": "#9f7aea",
+      "grades": [
+        "2-2"
+      ]
+    },
+    {
+      "id": "e214",
+      "title": "병태생리학1",
+      "credit": 3,
+      "color": "#fc8181",
+      "grades": [
+        "2-2"
+      ]
+    },
+    {
+      "id": "e215",
+      "title": "약품분자생물학",
+      "credit": 3,
+      "color": "#4299e1",
+      "grades": [
+        "2-2"
+      ]
+    },
+    {
+      "id": "u_1789395665430",
+      "title": "ㅁ123",
+      "credit": 2,
+      "color": "#805ad5",
+      "grades": [
+        "2-2"
+      ]
+    }
+  ],
+  "customCourses": [
+    {
+      "id": "u_1789395628341",
+      "title": "ㅁㅁ",
+      "credit": 2,
+      "type": "코어",
+      "sem": "1-1",
+      "summary": "",
+      "color": "#2b6cb0"
+    },
+    {
+      "id": "u_1789395633754",
+      "title": "ㅇㅇ",
+      "credit": 2,
+      "type": "코어",
+      "sem": "1-2",
+      "summary": "",
+      "color": "#38a169"
+    },
+    {
+      "id": "u_1789395665430",
+      "title": "ㅁ123",
+      "credit": 2,
+      "type": "코어",
+      "sem": "2-2",
+      "summary": "",
+      "color": "#805ad5"
+    },
+    {
+      "id": "u_1789396345341",
+      "title": "추가과목1",
+      "credit": 2,
+      "type": "코어",
+      "sem": "1-1",
+      "summary": "",
+      "color": "#dd6b20"
+    }
+  ],
+  "lastEnrollSem": "5-1",
+  "creditRecords": {},
+  "careerNotes": ""
+}

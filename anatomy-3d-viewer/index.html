@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>인체 해부학 3D 뷰어 | 약대·의대 학습용</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --panel-hover: #243044;
+      --accent: #3b82f6;
+      --accent-soft: #1e3a5f;
+      --text: #e8eef7;
+      --text-muted: #94a3b8;
+      --border: #2d3a4f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+    #sidebar {
+      width: 300px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 18px 16px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-header h1 { font-size: 1.15rem; font-weight: 700; }
+    .sidebar-header p { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+    .search-box { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .search-box input {
+      width: 100%; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); font-size: 0.875rem; outline: none;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .organ-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .organ-btn {
+      width: 100%; display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px; border: none; border-radius: 10px;
+      background: transparent; color: var(--text); cursor: pointer;
+      text-align: left; transition: background 0.15s; margin-bottom: 4px;
+    }
+    .organ-btn:hover { background: var(--panel-hover); }
+    .organ-btn.active { background: var(--accent-soft); outline: 1px solid var(--accent); }
+    .organ-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem; flex-shrink: 0;
+    }
+    .organ-meta { flex: 1; min-width: 0; }
+    .organ-meta .name { font-weight: 600; font-size: 0.9rem; }
+    .organ-meta .latin { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+    #viewer-area { flex: 1; position: relative; display: flex; flex-direction: column; }
+    #canvas-container { flex: 1; position: relative; }
+    #canvas-container canvas { display: block; width: 100% !important; height: 100% !important; }
+    #loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(15,20,25,0.85); z-index: 5; gap: 12px;
+    }
+    #loading.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #info-panel {
+      position: absolute; bottom: 16px; left: 16px; right: 16px;
+      max-width: 520px; background: rgba(26,35,50,0.96);
+      border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; backdrop-filter: blur(12px); z-index: 6;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    #info-panel h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+    #info-panel .latin-name { font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; }
+    #info-panel .desc { font-size: 0.85rem; line-height: 1.55; color: var(--text-muted); }
+    #info-panel .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .tag {
+      font-size: 0.7rem; padding: 3px 8px; border-radius: 6px;
+      background: var(--accent-soft); color: #93c5fd;
+    }
+    #info-panel .part-hint {
+      font-size: 0.72rem; color: #64748b; margin-top: 8px;
+      border-top: 1px solid var(--border); padding-top: 8px;
+    }
+    #toolbar {
+      position: absolute; top: 14px; right: 14px;
+      display: flex; gap: 8px; z-index: 6;
+    }
+    .tool-btn {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(26,35,50,0.9);
+      color: var(--text); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; font-size: 1.1rem;
+    }
+    .tool-btn:hover { background: var(--panel-hover); }
+    .tool-btn.active { outline: 1px solid var(--accent); background: var(--accent-soft); }
+    .footer-note {
+      padding: 10px 14px; font-size: 0.65rem; color: var(--text-muted);
+      border-top: 1px solid var(--border); line-height: 1.4;
+    }
+    /* Floating 3D labels */
+    #label-layer {
+      position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 4;
+    }
+    .hotspot-label {
+      position: absolute; transform: translate(-50%, -120%);
+      background: rgba(15,20,25,0.88); border: 1px solid var(--border);
+      border-radius: 8px; padding: 5px 10px; white-space: nowrap;
+      font-size: 0.75rem; font-weight: 600; color: var(--text);
+      pointer-events: auto; cursor: pointer; transition: all 0.15s;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+    }
+    .hotspot-label:hover, .hotspot-label.active {
+      background: var(--accent-soft); border-color: var(--accent);
+      transform: translate(-50%, -130%) scale(1.05);
+    }
+    .hotspot-label .sub {
+      display: block; font-size: 0.65rem; font-weight: 400;
+      color: var(--text-muted); margin-top: 1px;
+    }
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      #sidebar {
+        width: 100%; height: auto; max-height: 34vh;
+        border-right: none; border-bottom: 1px solid var(--border);
+      }
+      #info-panel { max-width: none; left: 10px; right: 10px; bottom: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="fileProtocolWarning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fecaca;padding:12px 16px;font-size:0.9rem;text-align:center;">
+    ⚠️ 이 파일을 직접 열면 모델이 로드되지 않습니다. <b>실행하기.bat</b> 을 사용하세요.
+  </div>
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileProtocolWarning').style.display = 'block';
+    }
+  </script>
+
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <h1>인체 해부학 3D</h1>
+      <p>약대 · 의대 학습용 참조 뷰어</p>
+    </div>
+    <div class="search-box">
+      <input type="search" id="searchInput" placeholder="장기 / 부위 검색..." />
+    </div>
+    <div class="organ-list" id="organList"></div>
+    <div class="footer-note">
+      교육 목적 전용 · 진단/치료용 아님<br>
+      모델: Anatomy Atelier · BodyParts3D / Z-Anatomy
+    </div>
+  </aside>
+
+  <main id="viewer-area">
+    <div id="canvas-container">
+      <div id="loading">
+        <div class="spinner"></div>
+        <div id="loadingText">3D 모델 로딩 중...</div>
+      </div>
+      <div id="label-layer"></div>
+    </div>
+    <div id="toolbar">
+      <button class="tool-btn active" id="btnLabels" title="명칭 라벨 표시">🏷</button>
+      <button class="tool-btn" id="btnReset" title="시점 초기화">⟲</button>
+      <button class="tool-btn" id="btnWire" title="와이어프레임">▦</button>
+      <button class="tool-btn" id="btnAuto" title="자동 회전">⟳</button>
+    </div>
+    <div id="info-panel">
+      <h2 id="infoTitle">장기를 선택하세요</h2>
+      <div class="latin-name" id="infoLatin"></div>
+      <div class="desc" id="infoDesc">왼쪽 목록에서 장기를 선택하면 3D 모델과 학습 정보가 표시됩니다.<br>모델 위의 <b>파란 점</b>이나 <b>명칭 라벨</b>을 클릭하면 부위별 상세 설명이 나옵니다.</div>
+      <div class="tags" id="infoTags"></div>
+      <div class="part-hint" id="partHint"></div>
+    </div>
+  </main>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+    // ─── 장기 + 부위(핫스팟) 데이터 ───
+    // position은 모델 중심 기준 대략적 상대 좌표 (로드 후 바운딩박스에 맞게 스케일)
+    const ORGANS = [
+      {
+        id: 'heart', nameKo: '심장', nameEn: 'Heart', latin: 'Cor',
+        icon: '❤️', color: '#ef4444', modelUrl: 'models/heart.glb',
+        desc: '혈액을 전신에 순환시키는 펌프. 좌·우 심방/심실과 대동맥·폐동맥으로 구성. 강심제, 항부정맥제, ACE억제제 등의 주요 작용 부위.',
+        tags: ['순환계', '심혈관계', '약물작용부위'],
+        hotspots: [
+          { id: 'aorta', nameKo: '대동맥', latin: 'Aorta', pos: [0.05, 0.55, 0.15],
+            desc: '좌심실에서 나와 전신으로 혈액을 보내는 가장 큰 동맥. 대동맥 기시부에 대동맥판막이 위치. 고혈압·죽상동맥경화증의 주요 표적 부위.' },
+          { id: 'la', nameKo: '좌심방', latin: 'Atrium sinistrum', pos: [0.35, 0.25, 0.1],
+            desc: '폐정맥으로부터 산소화된 혈액을 받아 좌심실로 보냄. 심방세동 시 혈전 형성 위험이 높아 항응고제 적응과 관련.' },
+          { id: 'ra', nameKo: '우심방', latin: 'Atrium dextrum', pos: [-0.35, 0.2, 0.15],
+            desc: '상·하대정맥으로부터 정맥혈을 받아 우심실로 보냄. 동방결절(SA node)이 위치하여 심박 리듬의 기점.' },
+          { id: 'lv', nameKo: '좌심실', latin: 'Ventriculus sinister', pos: [0.25, -0.25, 0.2],
+            desc: '가장 두꺼운 심근을 가진 펌프실. 전신 순환을 담당. 심부전·심근경색 시 주요 손상 부위. 강심글리코사이드·베타차단제 작용점.' },
+          { id: 'rv', nameKo: '우심실', latin: 'Ventriculus dexter', pos: [-0.2, -0.2, 0.25],
+            desc: '폐순환으로 혈액을 보냄. 폐동맥고혈압 시 부하가 증가. 우심실 부전이 전신부종·간울혈로 이어질 수 있음.' },
+          { id: 'mv', nameKo: '승모판', latin: 'Valva mitralis', pos: [0.1, -0.05, 0.3],
+            desc: '좌심방과 좌심실 사이의 판막. 승모판협착·역류 시 항응고·이뇨제·수술적 치료가 고려됨.' }
+        ]
+      },
+      {
+        id: 'brain', nameKo: '뇌', nameEn: 'Brain', latin: 'Encephalon',
+        icon: '🧠', color: '#a855f7', modelUrl: 'models/brain.glb',
+        desc: '중추신경계의 핵심. 혈액뇌장벽(BBB)으로 약물의 중추 전달이 제한됨. 항전간제, 항우울제, 마취제 등의 주요 표적.',
+        tags: ['신경계', '중추신경', 'BBB'],
+        hotspots: [
+          { id: 'frontal', nameKo: '전두엽', latin: 'Lobus frontalis', pos: [0, 0.35, 0.4],
+            desc: '실행기능·성격·운동계획 담당. 도파민·세로토닌 경로가 풍부하여 항정신병제·항우울제의 주요 작용 영역.' },
+          { id: 'parietal', nameKo: '두정엽', latin: 'Lobus parietalis', pos: [0, 0.45, -0.1],
+            desc: '체성감각·공간인지 담당. 감각 통합과 관련된 피질 영역.' },
+          { id: 'temporal', nameKo: '측두엽', latin: 'Lobus temporalis', pos: [0.45, 0.05, 0.15],
+            desc: '청각·기억·언어 이해(Wernicke). 해마가 인접하여 알츠하이머·항전간제(측두엽간질)와 관련.' },
+          { id: 'occipital', nameKo: '후두엽', latin: 'Lobus occipitalis', pos: [0, 0.15, -0.45],
+            desc: '시각 피질. 시각 경로 약물의 간접적 영향 부위.' },
+          { id: 'cerebellum', nameKo: '소뇌', latin: 'Cerebellum', pos: [0, -0.35, -0.3],
+            desc: '운동 협조·균형 담당. 알코올·일부 항전간제(페니토인 등)의 독성으로 실조가 나타날 수 있는 부위.' },
+          { id: 'brainstem', nameKo: '뇌간', latin: 'Truncus encephali', pos: [0, -0.4, 0.05],
+            desc: '호흡·심박·각성 조절. 아편계 진통제의 호흡억제 작용점이 위치. 생명 유지에 필수적.' }
+        ]
+      },
+      {
+        id: 'lungs', nameKo: '폐', nameEn: 'Lungs', latin: 'Pulmones',
+        icon: '🫁', color: '#f97316', modelUrl: 'models/lungs.glb',
+        desc: '가스 교환 기관. 흡입 약물의 주요 투여 경로. 베타2작용제·흡입 스테로이드 등이 작용.',
+        tags: ['호흡계', '흡입약물', '가스교환'],
+        hotspots: [
+          { id: 'trachea', nameKo: '기관', latin: 'Trachea', pos: [0, 0.55, 0.05],
+            desc: '후두에서 이어지는 기도. 기관지확장제·점액용해제의 통과 경로.' },
+          { id: 'rbr', nameKo: '우주기관지', latin: 'Bronchus principalis dexter', pos: [-0.15, 0.25, 0.05],
+            desc: '우측 폐로 분기. 흡인 시 이물질이 잘 들어가는 쪽.' },
+          { id: 'lbr', nameKo: '좌주기관지', latin: 'Bronchus principalis sinister', pos: [0.15, 0.25, 0.05],
+            desc: '좌측 폐로 분기. 심장 때문에 우측에 비해 더 수평에 가깝다.' },
+          { id: 'rlung', nameKo: '우폐', latin: 'Pulmo dexter', pos: [-0.4, 0, 0.15],
+            desc: '3엽(상·중·하엽). 가스교환의 주 무대. 흡입 스테로이드·베타2작용제의 표적.' },
+          { id: 'llung', nameKo: '좌폐', latin: 'Pulmo sinister', pos: [0.4, 0, 0.15],
+            desc: '2엽(상·하엽). 심장 절흔이 있음. COPD·천식 치료의 주요 표적 장기.' },
+          { id: 'base', nameKo: '폐저', latin: 'Basis pulmonis', pos: [0, -0.45, 0.2],
+            desc: '횡격막과 접하는 폐의 하단. 중력 영향으로 기저부에 환기·관류가 상대적으로 많음.' }
+        ]
+      },
+      {
+        id: 'liver', nameKo: '간', nameEn: 'Liver', latin: 'Hepar',
+        icon: '🟤', color: '#b45309', modelUrl: 'models/liver.glb',
+        desc: '약물 대사(1상·2상)의 중심. CYP450 위치. 초회통과효과·간독성·용량 조절의 핵심 장기.',
+        tags: ['소화계', '약물대사', 'CYP450'],
+        hotspots: [
+          { id: 'rlobe', nameKo: '우엽', latin: 'Lobus hepatis dexter', pos: [-0.3, 0.1, 0.2],
+            desc: '간 용적의 대부분을 차지. 대부분의 대사 기능이 수행되는 실질 부위.' },
+          { id: 'llobe', nameKo: '좌엽', latin: 'Lobus hepatis sinister', pos: [0.35, 0.1, 0.15],
+            desc: '우엽보다 작다. 좌엽 절제·이식 시 고려되는 해부학적 단위.' },
+          { id: 'porta', nameKo: '간문', latin: 'Porta hepatis', pos: [0, -0.15, 0.25],
+            desc: '간동맥·문맥·담관이 출입하는 부위. 문맥압항진·담도 폐쇄와 관련.' },
+          { id: 'gb', nameKo: '담낭 인접부', latin: 'Vesica biliaris (인근)', pos: [0.15, -0.25, 0.3],
+            desc: '담낭이 위치하는 영역. 담석·담즙 정체가 약물 배설(담즙 배설 약물)에 영향.' },
+          { id: 'ivc', nameKo: '하대정맥 인접', latin: 'V. cava inferior (인근)', pos: [-0.05, 0.05, -0.25],
+            desc: '간정맥이 하대정맥으로 합류. 간울혈·우심부전 시 영향을 받는 경로.' }
+        ]
+      },
+      {
+        id: 'kidneys', nameKo: '신장', nameEn: 'Kidneys', latin: 'Renes',
+        icon: '🫘', color: '#dc2626', modelUrl: 'models/kidneys.glb',
+        desc: '약물 배설의 주요 경로. 사구체여과·세뇨관분비·재흡수. 신기능 저하 시 용량 조절 필수.',
+        tags: ['비뇨계', '약물배설', '신기능'],
+        hotspots: [
+          { id: 'rkidney', nameKo: '우신장', latin: 'Ren dexter', pos: [-0.35, 0.1, 0.1],
+            desc: '우측에 위치. 간이 있어 좌측보다 약간 낮게 위치. 사구체여과율(GFR) 평가의 대상.' },
+          { id: 'lkidney', nameKo: '좌신장', latin: 'Ren sinister', pos: [0.35, 0.15, 0.1],
+            desc: '좌측에 위치. 신동맥·신정맥이 출입. NSAIDs·ACEI 등의 신독성·혈역학 영향 부위.' },
+          { id: 'cortex', nameKo: '피질 (개념)', latin: 'Cortex renalis', pos: [0.35, 0.35, 0.15],
+            desc: '사구체와 근위세뇨관이 밀집. 여과와 재흡수의 시작점. 아미노글리코사이드 신독성 관련.' },
+          { id: 'medulla', nameKo: '수질 (개념)', latin: 'Medulla renalis', pos: [0.35, -0.1, 0.05],
+            desc: '헨레고리·집합관 위치. 농축능과 이뇨제(루프·티아지드) 작용점.' },
+          { id: 'ureter', nameKo: '요관 기시', latin: 'Ureter', pos: [0.2, -0.4, 0.05],
+            desc: '신우에서 방광으로 이어지는 관. 요로결석·감염 시 통증·배설 장애의 경로.' }
+        ]
+      },
+      {
+        id: 'intestine', nameKo: '장', nameEn: 'Intestine', latin: 'Intestinum',
+        icon: '🟠', color: '#ea580c', modelUrl: 'models/intestine.glb',
+        desc: '경구 약물의 주 흡수 부위. 표면적·pH·P-gp·장내미생물이 생체이용률에 영향.',
+        tags: ['소화계', '약물흡수', '장관'],
+        hotspots: [
+          { id: 'si', nameKo: '소장 부위', latin: 'Intestinum tenue', pos: [0, 0.2, 0.15],
+            desc: '십이지장·공장·회장. 대부분의 약물 흡수가 일어나는 곳. 표면적이 매우 넓음.' },
+          { id: 'li', nameKo: '대장 부위', latin: 'Intestinum crassum', pos: [0.1, -0.25, 0.1],
+            desc: '수분 재흡수·일부 서방성 제제 흡수. 장내 미생물에 의한 대사(예: 설파살라진) 관련.' },
+          { id: 'ileum', nameKo: '회장 (개념)', latin: 'Ileum', pos: [-0.2, -0.1, 0.2],
+            desc: '비타민 B12·담즙산 흡수. 크론병 호발 부위. 장간순환에 중요.' }
+        ]
+      },
+      {
+        id: 'pancreas', nameKo: '췌장', nameEn: 'Pancreas', latin: 'Pancreas',
+        icon: '🟡', color: '#eab308', modelUrl: 'models/pancreas.glb',
+        desc: '외분비(소화효소)와 내분비(인슐린·글루카곤). 당뇨병 치료제·췌장효소제와 직결.',
+        tags: ['소화계', '내분비', '당뇨병'],
+        hotspots: [
+          { id: 'head', nameKo: '췌장 두부', latin: 'Caput pancreatis', pos: [-0.3, 0, 0.1],
+            desc: '십이지장에 둘러싸인 부분. 췌관이 총담관과 합류. 두부암 시 황달 유발.' },
+          { id: 'body', nameKo: '췌장 체부', latin: 'Corpus pancreatis', pos: [0.05, 0.05, 0.05],
+            desc: '본체의 대부분. 외분비선포와 내분비 랑게르한스섬이 분포.' },
+          { id: 'tail', nameKo: '췌장 미부', latin: 'Cauda pancreatis', pos: [0.4, 0.05, 0],
+            desc: '비장 근처에 위치. 랑게르한스섬 밀도가 상대적으로 높음. 인슐린 분비 관련.' },
+          { id: 'islet', nameKo: '랑게르한스섬 (개념)', latin: 'Insulae pancreaticae', pos: [0.15, 0.2, 0.15],
+            desc: '인슐린(β세포)·글루카곤(α세포) 분비. 설포닐우레아·인크레틴·인슐린 제제의 표적.' }
+        ]
+      },
+      {
+        id: 'eyeball', nameKo: '안구', nameEn: 'Eyeball', latin: 'Bulbus oculi',
+        icon: '👁️', color: '#06b6d4', modelUrl: 'models/eyeball.glb',
+        desc: '시각 기관. 점안제의 국소 투여 경로. 녹내장·항염증 점안제 사용.',
+        tags: ['감각기', '점안제', '안과'],
+        hotspots: [
+          { id: 'cornea', nameKo: '각막', latin: 'Cornea', pos: [0, 0, 0.45],
+            desc: '투명한 전면. 점안 약물의 주 흡수 경로. 각막 장벽이 친수성/지용성 약물 투과에 영향.' },
+          { id: 'lens', nameKo: '수정체', latin: 'Lens', pos: [0, 0, 0.15],
+            desc: '초점 조절. 스테로이드 장기 사용 시 백내장 위험과 관련.' },
+          { id: 'retina', nameKo: '망막 (후부)', latin: 'Retina', pos: [0, 0, -0.4],
+            desc: '광수용체 위치. 당뇨망막병증·황반변성 치료제(항VEGF 등)의 표적.' },
+          { id: 'optic', nameKo: '시신경 유두', latin: 'Discus nervi optici', pos: [0.1, 0, -0.45],
+            desc: '시신경이 나가는 부위. 녹내장에서 유두 함몰이 관찰되는 중요 지표.' }
+        ]
+      },
+      {
+        id: 'skeleton', nameKo: '뼈', nameEn: 'skeleton', latin: 'skeleton',
+        icon: '🦴', color: '#02a5d4', modelUrl: 'models/skeleton.glb',
+        desc: '지지·조혈·칼슘 저장. 비스포스포네이트·비타민D·칼시토닌 관련.',
+        tags: ['근골격계'],
+        hotspots: []
+      }
+    ];
+
+    // ─── Three.js ───
+    const container = document.getElementById('canvas-container');
+    const labelLayer = document.getElementById('label-layer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1419);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    camera.position.set(0, 0.3, 2.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    scene.add(new THREE.HemisphereLight(0xb1e1ff, 0x1a1a2e, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+    dir.position.set(3, 5, 4);
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight(0x88aaff, 0.35);
+    fill.position.set(-3, 1, -2);
+    scene.add(fill);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 0.35;
+    controls.maxDistance = 8;
+
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath(
+      'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/'
+    );
+    loader.setDRACOLoader(dracoLoader);
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    let currentModel = null;
+    let currentOrgan = null;
+    let hotspotGroup = null;
+    let hotspotMarkers = [];
+    let labelEls = [];
+    let autoRotate = false;
+    let wireframeMode = false;
+    let showLabels = true;
+    let currentOrganId = null;
+
+    // ─── UI ───
+    const organListEl = document.getElementById('organList');
+    const searchInput = document.getElementById('searchInput');
+    const loadingEl = document.getElementById('loading');
+    const loadingText = document.getElementById('loadingText');
+
+    function renderList(filter = '') {
+      const q = filter.trim().toLowerCase();
+      organListEl.innerHTML = '';
+      ORGANS.filter(o => {
+        if (!q) return true;
+        const inOrgan = o.nameKo.includes(q) || o.nameEn.toLowerCase().includes(q) ||
+          o.latin.toLowerCase().includes(q) || o.tags.some(t => t.includes(q));
+        const inHot = o.hotspots.some(h =>
+          h.nameKo.includes(q) || h.latin.toLowerCase().includes(q));
+        return inOrgan || inHot;
+      }).forEach(organ => {
+        const btn = document.createElement('button');
+        btn.className = 'organ-btn' + (currentOrganId === organ.id ? ' active' : '');
+        btn.innerHTML = `
+          <div class="organ-icon" style="background:${organ.color}22">${organ.icon}</div>
+          <div class="organ-meta">
+            <div class="name">${organ.nameKo}</div>
+            <div class="latin">${organ.latin} · ${organ.nameEn}</div>
+          </div>`;
+        btn.addEventListener('click', () => loadOrgan(organ));
+        organListEl.appendChild(btn);
+      });
+    }
+
+    function showOrganInfo(organ) {
+      document.getElementById('infoTitle').textContent = organ.nameKo + ' (' + organ.nameEn + ')';
+      document.getElementById('infoLatin').textContent = organ.latin;
+      document.getElementById('infoDesc').textContent = organ.desc;
+      document.getElementById('infoTags').innerHTML =
+        organ.tags.map(t => `<span class="tag">${t}</span>`).join('');
+      document.getElementById('partHint').textContent =
+        '💡 파란 점 또는 라벨을 클릭하면 부위별 상세 설명이 표시됩니다.';
+      labelEls.forEach(el => el.classList.remove('active'));
+    }
+
+    function showHotspotInfo(hs, organ) {
+      document.getElementById('infoTitle').textContent = hs.nameKo;
+      document.getElementById('infoLatin').textContent = hs.latin + '  ·  ' + organ.nameKo;
+      document.getElementById('infoDesc').textContent = hs.desc;
+      document.getElementById('infoTags').innerHTML =
+        `<span class="tag">${organ.nameKo}</span><span class="tag">해부학</span>`;
+      document.getElementById('partHint').textContent =
+        '전체 장기 설명으로 돌아가려면 왼쪽 목록에서 같은 장기를 다시 클릭하세요.';
+      labelEls.forEach(el => {
+        el.classList.toggle('active', el.dataset.id === hs.id);
+      });
+    }
+
+    function showLoading(show, text = '3D 모델 로딩 중...') {
+      loadingEl.classList.toggle('hidden', !show);
+      loadingText.textContent = text;
+    }
+
+    function clearHotspots() {
+      if (hotspotGroup) {
+        scene.remove(hotspotGroup);
+        hotspotGroup.traverse(c => {
+          if (c.geometry) c.geometry.dispose();
+          if (c.material) c.material.dispose();
+        });
+        hotspotGroup = null;
+      }
+      hotspotMarkers = [];
+      labelEls.forEach(el => el.remove());
+      labelEls = [];
+    }
+
+    function clearModel() {
+      clearHotspots();
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel.traverse(c => {
+          if (c.isMesh) {
+            c.geometry?.dispose();
+            if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+            else c.material?.dispose();
+          }
+        });
+        currentModel = null;
+      }
+    }
+
+    function fitCameraToObject(object) {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = camera.fov * (Math.PI / 180);
+      let dist = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.7;
+      camera.position.set(center.x + dist * 0.35, center.y + dist * 0.2, center.z + dist);
+      controls.target.copy(center);
+      controls.update();
+      return { box, size, center, maxDim };
+    }
+
+    function createHotspots(organ, modelInfo) {
+      clearHotspots();
+      hotspotGroup = new THREE.Group();
+      const { center, maxDim } = modelInfo;
+      const scale = maxDim * 0.55;
+
+      organ.hotspots.forEach(hs => {
+        // 3D marker
+        const geo = new THREE.SphereGeometry(maxDim * 0.025, 16, 16);
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0x3b82f6,
+          transparent: true,
+          opacity: 0.9,
+          depthTest: true
+        });
+        const marker = new THREE.Mesh(geo, mat);
+        marker.position.set(
+          center.x + hs.pos[0] * scale,
+          center.y + hs.pos[1] * scale,
+          center.z + hs.pos[2] * scale
+        );
+        marker.userData = { hotspot: hs, organ };
+        hotspotGroup.add(marker);
+        hotspotMarkers.push(marker);
+
+        // glow ring
+        const ringGeo = new THREE.RingGeometry(maxDim * 0.03, maxDim * 0.04, 24);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0x60a5fa, transparent: true, opacity: 0.45,
+          side: THREE.DoubleSide, depthWrite: false
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(marker.position);
+        ring.lookAt(camera.position);
+        ring.userData = { isRing: true, parentMarker: marker };
+        hotspotGroup.add(ring);
+
+        // HTML label
+        const label = document.createElement('div');
+        label.className = 'hotspot-label';
+        label.dataset.id = hs.id;
+        label.innerHTML = `${hs.nameKo}<span class="sub">${hs.latin}</span>`;
+        label.style.display = showLabels ? 'block' : 'none';
+        label.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showHotspotInfo(hs, organ);
+        });
+        labelLayer.appendChild(label);
+        labelEls.push(label);
+        marker.userData.labelEl = label;
+      });
+
+      scene.add(hotspotGroup);
+    }
+
+    function updateLabels() {
+      if (!hotspotMarkers.length) return;
+      const rect = container.getBoundingClientRect();
+      hotspotMarkers.forEach(marker => {
+        const label = marker.userData.labelEl;
+        if (!label) return;
+        const pos = marker.position.clone().project(camera);
+        const x = (pos.x * 0.5 + 0.5) * rect.width;
+        const y = (-pos.y * 0.5 + 0.5) * rect.height;
+        const visible = pos.z < 1 && pos.z > -1;
+        label.style.left = x + 'px';
+        label.style.top = y + 'px';
+        label.style.display = (showLabels && visible) ? 'block' : 'none';
+        label.style.opacity = visible ? '1' : '0';
+      });
+      // rings face camera
+      if (hotspotGroup) {
+        hotspotGroup.children.forEach(c => {
+          if (c.userData.isRing) c.lookAt(camera.position);
+        });
+      }
+    }
+
+    async function loadOrgan(organ) {
+      currentOrganId = organ.id;
+      currentOrgan = organ;
+      renderList(searchInput.value);
+      showOrganInfo(organ);
+      showLoading(true, `${organ.nameKo} 모델 로딩 중...`);
+      clearModel();
+
+      try {
+        const gltf = await new Promise((resolve, reject) => {
+          loader.load(organ.modelUrl, resolve, undefined, reject);
+        });
+        const model = gltf.scene;
+        model.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material.side = THREE.DoubleSide;
+              if (wireframeMode) child.material.wireframe = true;
+            }
+          }
+        });
+        scene.add(model);
+        currentModel = model;
+        const info = fitCameraToObject(model);
+        createHotspots(organ, info);
+        showLoading(false);
+      } catch (err) {
+        console.error(err);
+        showLoading(true, '모델 로드 실패: ' + (err.message || err));
+        setTimeout(() => showLoading(false), 3000);
+      }
+    }
+
+    // 클릭으로 핫스팟 선택
+    function onPointerDown(event) {
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(hotspotMarkers, false);
+      if (hits.length > 0) {
+        const { hotspot, organ } = hits[0].object.userData;
+        showHotspotInfo(hotspot, organ);
+      }
+    }
+    container.addEventListener('pointerdown', onPointerDown);
+
+    // 검색
+    searchInput.addEventListener('input', e => renderList(e.target.value));
+
+    // 툴바
+    document.getElementById('btnLabels').addEventListener('click', function () {
+      showLabels = !showLabels;
+      this.classList.toggle('active', showLabels);
+      updateLabels();
+    });
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (currentModel) fitCameraToObject(currentModel);
+    });
+    document.getElementById('btnWire').addEventListener('click', () => {
+      wireframeMode = !wireframeMode;
+      if (currentModel) {
+        currentModel.traverse(c => {
+          if (c.isMesh && c.material) {
+            if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = wireframeMode);
+            else c.material.wireframe = wireframeMode;
+          }
+        });
+      }
+    });
+    document.getElementById('btnAuto').addEventListener('click', function () {
+      autoRotate = !autoRotate;
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 1.5;
+      this.classList.toggle('active', autoRotate);
+    });
+
+    function onResize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      updateLabels();
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      updateLabels();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    renderList();
+    loadOrgan(ORGANS[0]);
+  </script>
+</body>
+</html>

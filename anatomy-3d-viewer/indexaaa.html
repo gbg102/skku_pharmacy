@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>인체 해부학 3D 뷰어 | 약대·의대 학습용</title>
+  <style>
+    :root {
+      --bg: #0f1419; --panel: #1a2332; --panel-hover: #243044;
+      --accent: #3b82f6; --accent-soft: #1e3a5f;
+      --text: #e8eef7; --text-muted: #94a3b8; --border: #2d3a4f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex;
+    }
+    #sidebar {
+      width: 320px; background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 10; flex-shrink: 0;
+    }
+    .sidebar-header { padding: 16px 14px 10px; border-bottom: 1px solid var(--border); }
+    .sidebar-header h1 { font-size: 1.1rem; font-weight: 700; }
+    .sidebar-header p { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+    .search-box { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .search-box input {
+      width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 0.85rem; outline: none;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .organ-list { flex: 1; overflow-y: auto; padding: 6px; }
+    .tab-bar {
+      display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 8px; border: none; background: transparent;
+      color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active {
+      color: var(--accent); border-bottom-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .tab-btn:hover { color: var(--text); }
+
+    .sys-header {
+      display: flex; align-items: center; gap: 8px; width: 100%;
+      padding: 8px 10px; border: none; border-radius: 8px; background: transparent;
+      color: var(--text); cursor: pointer; text-align: left; font-weight: 700; font-size: 0.82rem;
+      margin-top: 4px;
+    }
+    .sys-header:hover { background: var(--panel-hover); }
+    .sys-header .arrow { font-size: 0.7rem; color: var(--text-muted); width: 12px; }
+    .sys-header .sys-icon { font-size: 1rem; }
+    .sys-items { padding-left: 6px; display: none; }
+    .sys-items.open { display: block; }
+    .item-btn {
+      width: 100%; display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 10px 7px 22px; border: none; border-radius: 8px;
+      background: transparent; color: var(--text); cursor: pointer; text-align: left;
+      margin-bottom: 2px; transition: background 0.12s;
+    }
+    .item-btn:hover { background: var(--panel-hover); }
+    .item-btn.active { background: var(--accent-soft); outline: 1px solid var(--accent); }
+    .item-btn .dot {
+      width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+      background: var(--accent);
+    }
+    .item-btn .dot.no3d { background: #64748b; }
+    .item-meta { flex: 1; min-width: 0; }
+    .item-meta .name { font-weight: 600; font-size: 0.82rem; }
+    .item-meta .latin { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
+    .item-meta .badge {
+      display: inline-block; font-size: 0.6rem; padding: 1px 5px; border-radius: 4px;
+      background: #14532d; color: #86efac; margin-left: 4px; vertical-align: middle;
+    }
+    #viewer-area { flex: 1; position: relative; display: flex; flex-direction: column; }
+    #canvas-container { flex: 1; position: relative; }
+    #canvas-container canvas { display: block; width: 100% !important; height: 100% !important; }
+    #loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(15,20,25,0.85); z-index: 5; gap: 12px;
+    }
+    #loading.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #info-panel {
+      position: absolute; bottom: 14px; left: 14px; right: 14px; max-width: 540px;
+      background: rgba(26,35,50,0.96); border: 1px solid var(--border); border-radius: 14px;
+      padding: 14px 16px; backdrop-filter: blur(12px); z-index: 6;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4); max-height: 42vh; overflow-y: auto;
+    }
+    #info-panel h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 2px; }
+    #info-panel .latin-name { font-size: 0.78rem; color: var(--accent); margin-bottom: 8px; }
+    #info-panel .desc { font-size: 0.84rem; line-height: 1.55; color: var(--text-muted); }
+    #info-panel .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .tag {
+      font-size: 0.68rem; padding: 2px 7px; border-radius: 5px;
+      background: var(--accent-soft); color: #93c5fd;
+    }
+    #info-panel .part-hint {
+      font-size: 0.7rem; color: #64748b; margin-top: 8px;
+      border-top: 1px solid var(--border); padding-top: 7px;
+    }
+    #toolbar {
+      position: absolute; top: 12px; right: 12px; display: flex; gap: 7px; z-index: 6;
+    }
+    .tool-btn {
+      width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+      background: rgba(26,35,50,0.9); color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    }
+    .tool-btn:hover { background: var(--panel-hover); }
+    .tool-btn.active { outline: 1px solid var(--accent); background: var(--accent-soft); }
+    .footer-note {
+      padding: 8px 12px; font-size: 0.62rem; color: var(--text-muted);
+      border-top: 1px solid var(--border); line-height: 1.4;
+    }
+    #label-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 4; }
+    .hotspot-label {
+      position: absolute; transform: translate(-50%, -120%);
+      background: rgba(15,20,25,0.9); border: 1px solid var(--border);
+      border-radius: 7px; padding: 4px 9px; white-space: nowrap;
+      font-size: 0.72rem; font-weight: 600; color: var(--text);
+      pointer-events: auto; cursor: pointer; transition: all 0.12s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    }
+    .hotspot-label:hover, .hotspot-label.active {
+      background: var(--accent-soft); border-color: var(--accent);
+      transform: translate(-50%, -130%) scale(1.04);
+    }
+    .hotspot-label .sub {
+      display: block; font-size: 0.62rem; font-weight: 400; color: var(--text-muted); margin-top: 1px;
+    }
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; max-height: 36vh; border-right: none; border-bottom: 1px solid var(--border); }
+      #info-panel { max-width: none; left: 8px; right: 8px; bottom: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="fileProtocolWarning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#7f1d1d;color:#fecaca;padding:10px;font-size:0.85rem;text-align:center;">
+    ⚠️ file:// 로 열면 모델이 로드되지 않습니다. 로컬 서버로 실행하세요.
+  </div>
+  <script>if (location.protocol === 'file:') document.getElementById('fileProtocolWarning').style.display = 'block';</script>
+
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <h1>인체 해부학 3D</h1>
+      <p>약대 · 의대 학습용 · 계통별 상세 목록</p>
+    </div>
+    <div class="search-box">
+      <input type="search" id="searchInput" placeholder="조직·장기·계통 검색..." />
+    </div>
+    
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="organs" id="tabOrgans">장기·조직</button>
+      <button class="tab-btn" data-tab="skeleton" id="tabSkeleton">골격계</button>
+    </div>
+
+    <div class="organ-list" id="organList"></div>
+    <div class="footer-note">
+      탭: 장기·조직 / 골격계 · 초록 배지 = 3D<br>
+      골격: Anatria/Z-Anatomy (CC BY-SA) · 교육 전용
+    </div>
+  </aside>
+
+  <main id="viewer-area">
+    <div id="canvas-container">
+      <div id="loading"><div class="spinner"></div><div id="loadingText">로딩 중...</div></div>
+      <div id="label-layer"></div>
+    </div>
+    <div id="toolbar">
+      <button class="tool-btn active" id="btnLabels" title="명칭 라벨">🏷</button>
+      <button class="tool-btn" id="btnReset" title="시점 초기화">⟲</button>
+      <button class="tool-btn" id="btnWire" title="와이어프레임">▦</button>
+      <button class="tool-btn" id="btnAuto" title="자동 회전">⟳</button>
+    </div>
+    <div id="info-panel">
+      <h2 id="infoTitle">조직을 선택하세요</h2>
+      <div class="latin-name" id="infoLatin"></div>
+      <div class="desc" id="infoDesc">왼쪽 계통 목록에서 장기·조직을 선택하세요. 3D 모델이 있는 항목은 모델과 부위 라벨이 표시됩니다.</div>
+      <div class="tags" id="infoTags"></div>
+      <div class="part-hint" id="partHint"></div>
+    </div>
+  </main>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+    // ─── 3D 모델이 있는 장기 (핫스팟 포함) ───
+    const MODELS = {
+      heart: {
+        id: 'heart', nameKo: '심장', nameEn: 'Heart', latin: 'Cor',
+        modelUrl: 'models/heart.glb', color: '#ef4444',
+        desc: '혈액을 전신에 순환시키는 펌프. 강심제·항부정맥제·ACE억제제 등의 주요 작용 부위.',
+        tags: ['순환계', '심혈관계'],
+        hotspots: [
+          { id: 'aorta', nameKo: '대동맥', latin: 'Aorta', pos: [0.05, 0.55, 0.15],
+            desc: '좌심실에서 전신으로 혈액을 보내는 가장 큰 동맥. 고혈압·죽상동맥경화의 주요 표적.' },
+          { id: 'la', nameKo: '좌심방', latin: 'Atrium sinistrum', pos: [0.35, 0.25, 0.1],
+            desc: '폐정맥에서 산소혈을 받아 좌심실로 보냄. 심방세동 시 항응고 적응과 관련.' },
+          { id: 'ra', nameKo: '우심방', latin: 'Atrium dextrum', pos: [-0.35, 0.2, 0.15],
+            desc: '상·하대정맥 정맥혈 유입. 동방결절(SA node)이 위치하여 심박 리듬의 기점.' },
+          { id: 'lv', nameKo: '좌심실', latin: 'Ventriculus sinister', pos: [0.25, -0.25, 0.2],
+            desc: '가장 두꺼운 심근. 전신 순환 담당. 심부전·심근경색 시 주요 손상 부위.' },
+          { id: 'rv', nameKo: '우심실', latin: 'Ventriculus dexter', pos: [-0.2, -0.2, 0.25],
+            desc: '폐순환으로 혈액을 보냄. 폐동맥고혈압 시 부하 증가.' },
+          { id: 'mv', nameKo: '승모판', latin: 'Valva mitralis', pos: [0.1, -0.05, 0.3],
+            desc: '좌심방-좌심실 사이 판막. 승모판 질환 시 항응고·이뇨·수술 고려.' }
+        ]
+      },
+      brain: {
+        id: 'brain', nameKo: '뇌', nameEn: 'Brain', latin: 'Encephalon',
+        modelUrl: 'models/brain.glb', color: '#a855f7',
+        desc: '중추신경계 핵심. BBB로 약물 중추 전달이 제한됨. 항전간제·항우울제·마취제 표적.',
+        tags: ['신경계', 'BBB'],
+        hotspots: [
+          { id: 'frontal', nameKo: '전두엽', latin: 'Lobus frontalis', pos: [0, 0.35, 0.4],
+            desc: '실행기능·성격·운동계획. 항정신병제·항우울제 주요 작용 영역.' },
+          { id: 'parietal', nameKo: '두정엽', latin: 'Lobus parietalis', pos: [0, 0.45, -0.1],
+            desc: '체성감각·공간인지. 감각 통합 피질.' },
+          { id: 'temporal', nameKo: '측두엽', latin: 'Lobus temporalis', pos: [0.45, 0.05, 0.15],
+            desc: '청각·기억·언어. 해마 인접. 알츠하이머·측두엽간질과 관련.' },
+          { id: 'occipital', nameKo: '후두엽', latin: 'Lobus occipitalis', pos: [0, 0.15, -0.45],
+            desc: '시각 피질.' },
+          { id: 'cerebellum', nameKo: '소뇌', latin: 'Cerebellum', pos: [0, -0.35, -0.3],
+            desc: '운동 협조·균형. 알코올·페니토인 등 독성으로 실조 가능.' },
+          { id: 'brainstem', nameKo: '뇌간', latin: 'Truncus encephali', pos: [0, -0.4, 0.05],
+            desc: '호흡·심박·각성. 아편 진통제 호흡억제 작용점.' }
+        ]
+      },
+      lungs: {
+        id: 'lungs', nameKo: '폐', nameEn: 'Lungs', latin: 'Pulmones',
+        modelUrl: 'models/lungs.glb', color: '#f97316',
+        desc: '가스 교환. 흡입 약물 주 투여 경로. 베타2작용제·흡입 스테로이드 표적.',
+        tags: ['호흡계', '흡입약물'],
+        hotspots: [
+          { id: 'trachea', nameKo: '기관', latin: 'Trachea', pos: [0, 0.55, 0.05],
+            desc: '기도. 기관지확장제·점액용해제 통과 경로.' },
+          { id: 'rbr', nameKo: '우주기관지', latin: 'Bronchus principalis dexter', pos: [-0.15, 0.25, 0.05],
+            desc: '우측 폐 분기. 흡인 시 이물질이 잘 들어가는 쪽.' },
+          { id: 'lbr', nameKo: '좌주기관지', latin: 'Bronchus principalis sinister', pos: [0.15, 0.25, 0.05],
+            desc: '좌측 폐 분기.' },
+          { id: 'rlung', nameKo: '우폐', latin: 'Pulmo dexter', pos: [-0.4, 0, 0.15],
+            desc: '3엽. 가스교환 주 무대. 흡입제 표적.' },
+          { id: 'llung', nameKo: '좌폐', latin: 'Pulmo sinister', pos: [0.4, 0, 0.15],
+            desc: '2엽. COPD·천식 치료 표적.' },
+          { id: 'base', nameKo: '폐저', latin: 'Basis pulmonis', pos: [0, -0.45, 0.2],
+            desc: '횡격막 접하는 하단. 기저부 환기·관류가 상대적 많음.' }
+        ]
+      },
+      liver: {
+        id: 'liver', nameKo: '간', nameEn: 'Liver', latin: 'Hepar',
+        modelUrl: 'models/liver.glb', color: '#b45309',
+        desc: '약물 대사(1·2상) 중심. CYP450. 초회통과·간독성·용량 조절 핵심.',
+        tags: ['소화계', 'CYP450'],
+        hotspots: [
+          { id: 'rlobe', nameKo: '우엽', latin: 'Lobus hepatis dexter', pos: [-0.3, 0.1, 0.2],
+            desc: '간 용적 대부분. 주 대사 실질.' },
+          { id: 'llobe', nameKo: '좌엽', latin: 'Lobus hepatis sinister', pos: [0.35, 0.1, 0.15],
+            desc: '우엽보다 작음. 절제·이식 시 해부 단위.' },
+          { id: 'porta', nameKo: '간문', latin: 'Porta hepatis', pos: [0, -0.15, 0.25],
+            desc: '간동맥·문맥·담관 출입. 문맥압항진·담도폐쇄 관련.' },
+          { id: 'gb', nameKo: '담낭 인접', latin: 'Vesica biliaris 인근', pos: [0.15, -0.25, 0.3],
+            desc: '담낭 영역. 담석·담즙 정체가 담즙 배설 약물에 영향.' },
+          { id: 'ivc', nameKo: '하대정맥 인접', latin: 'V. cava inferior 인근', pos: [-0.05, 0.05, -0.25],
+            desc: '간정맥 합류. 간울혈·우심부전 시 영향.' }
+        ]
+      },
+      kidneys: {
+        id: 'kidneys', nameKo: '신장', nameEn: 'Kidneys', latin: 'Renes',
+        modelUrl: 'models/kidneys.glb', color: '#dc2626',
+        desc: '약물 배설 주 경로. 사구체여과·세뇨관분비·재흡수. 신기능 저하 시 용량 조절.',
+        tags: ['비뇨계', '약물배설'],
+        hotspots: [
+          { id: 'rkidney', nameKo: '우신장', latin: 'Ren dexter', pos: [-0.35, 0.1, 0.1],
+            desc: '우측. 간 때문에 좌측보다 약간 낮음. GFR 평가 대상.' },
+          { id: 'lkidney', nameKo: '좌신장', latin: 'Ren sinister', pos: [0.35, 0.15, 0.1],
+            desc: '좌측. NSAIDs·ACEI 신독성·혈역학 영향 부위.' },
+          { id: 'cortex', nameKo: '피질', latin: 'Cortex renalis', pos: [0.35, 0.35, 0.15],
+            desc: '사구체·근위세뇨관. 아미노글리코사이드 신독성 관련.' },
+          { id: 'medulla', nameKo: '수질', latin: 'Medulla renalis', pos: [0.35, -0.1, 0.05],
+            desc: '헨레고리·집합관. 루프·티아지드 이뇨제 작용점.' },
+          { id: 'ureter', nameKo: '요관 기시', latin: 'Ureter', pos: [0.2, -0.4, 0.05],
+            desc: '신우→방광. 요로결석·감염 시 통증·배설 장애 경로.' }
+        ]
+      },
+      intestine: {
+        id: 'intestine', nameKo: '장', nameEn: 'Intestine', latin: 'Intestinum',
+        modelUrl: 'models/intestine.glb', color: '#ea580c',
+        desc: '경구 약물 주 흡수. 표면적·pH·P-gp·장내미생물이 생체이용률에 영향.',
+        tags: ['소화계', '약물흡수'],
+        hotspots: [
+          { id: 'si', nameKo: '소장', latin: 'Intestinum tenue', pos: [0, 0.2, 0.15],
+            desc: '십이지장·공장·회장. 대부분 약물 흡수 부위.' },
+          { id: 'li', nameKo: '대장', latin: 'Intestinum crassum', pos: [0.1, -0.25, 0.1],
+            desc: '수분 재흡수·일부 서방성 흡수. 장내미생물 대사(설파살라진 등).' },
+          { id: 'ileum', nameKo: '회장', latin: 'Ileum', pos: [-0.2, -0.1, 0.2],
+            desc: 'B12·담즙산 흡수. 크론 호발. 장간순환 중요.' }
+        ]
+      },
+      pancreas: {
+        id: 'pancreas', nameKo: '췌장', nameEn: 'Pancreas', latin: 'Pancreas',
+        modelUrl: 'models/pancreas.glb', color: '#eab308',
+        desc: '외분비(소화효소)+내분비(인슐린·글루카곤). 당뇨 치료제·췌장효소제 직결.',
+        tags: ['소화계', '내분비'],
+        hotspots: [
+          { id: 'head', nameKo: '두부', latin: 'Caput pancreatis', pos: [-0.3, 0, 0.1],
+            desc: '십이지장에 둘러싸임. 두부암 시 황달.' },
+          { id: 'body', nameKo: '체부', latin: 'Corpus pancreatis', pos: [0.05, 0.05, 0.05],
+            desc: '선포·랑게르한스섬 분포.' },
+          { id: 'tail', nameKo: '미부', latin: 'Cauda pancreatis', pos: [0.4, 0.05, 0],
+            desc: '비장 근처. 섬 밀도 상대적 높음.' },
+          { id: 'islet', nameKo: '랑게르한스섬', latin: 'Insulae pancreaticae', pos: [0.15, 0.2, 0.15],
+            desc: '인슐린(β)·글루카곤(α). 설포닐우레아·인크레틴·인슐린 표적.' }
+        ]
+      },
+      eyeball: {
+        id: 'eyeball', nameKo: '안구', nameEn: 'Eyeball', latin: 'Bulbus oculi',
+        modelUrl: 'models/eyeball.glb', color: '#06b6d4',
+        desc: '시각 기관. 점안제 국소 투여. 녹내장·항염증 점안제.',
+        tags: ['감각기', '점안제'],
+        hotspots: [
+          { id: 'cornea', nameKo: '각막', latin: 'Cornea', pos: [0, 0, 0.45],
+            desc: '점안 약물 주 흡수. 각막 장벽이 투과에 영향.' },
+          { id: 'lens', nameKo: '수정체', latin: 'Lens', pos: [0, 0, 0.15],
+            desc: '초점 조절. 스테로이드 장기 사용 시 백내장 위험.' },
+          { id: 'retina', nameKo: '망막', latin: 'Retina', pos: [0, 0, -0.4],
+            desc: '광수용체. 당뇨망막·황반변성 치료(항VEGF) 표적.' },
+          { id: 'optic', nameKo: '시신경 유두', latin: 'Discus n. optici', pos: [0.1, 0, -0.45],
+            desc: '시신경 출구. 녹내장 유두 함몰 지표.' }
+        ]
+      }
+    };
+
+    // ─── 계통별 상세 조직 목록 (왼쪽 리스트) ───
+    // modelId: 연결할 3D 모델, hotspotId: 자동 선택할 핫스팟 (선택)
+    const SYSTEMS = [
+      {
+        id: 'cardio', name: '순환계 (심혈관계)', icon: '❤️',
+        items: [
+          { id: 'heart', nameKo: '심장', latin: 'Cor', modelId: 'heart',
+            desc: '전신 혈액 순환 펌프. 강심제·항부정맥제·ACEI·베타차단제 주요 표적.' },
+          { id: 'aorta', nameKo: '대동맥', latin: 'Aorta', modelId: 'heart', hotspotId: 'aorta',
+            desc: '좌심실→전신 동맥. 고혈압·죽상경화 표적.' },
+          { id: 'la', nameKo: '좌심방', latin: 'Atrium sinistrum', modelId: 'heart', hotspotId: 'la',
+            desc: '폐정맥 유입. 심방세동·항응고와 관련.' },
+          { id: 'ra', nameKo: '우심방', latin: 'Atrium dextrum', modelId: 'heart', hotspotId: 'ra',
+            desc: '대정맥 유입. SA node 위치.' },
+          { id: 'lv', nameKo: '좌심실', latin: 'Ventriculus sinister', modelId: 'heart', hotspotId: 'lv',
+            desc: '전신 펌프. 심부전·MI 주요 부위.' },
+          { id: 'rv', nameKo: '우심실', latin: 'Ventriculus dexter', modelId: 'heart', hotspotId: 'rv',
+            desc: '폐순환 펌프.' },
+          { id: 'mv', nameKo: '승모판', latin: 'Valva mitralis', modelId: 'heart', hotspotId: 'mv',
+            desc: '좌심방-좌심실 판막.' },
+          { id: 'av', nameKo: '대동맥판', latin: 'Valva aortae',
+            desc: '좌심실-대동맥 사이 반월판. 대동맥판 협착/역류 시 수술·항응고 고려.' },
+          { id: 'coronary', nameKo: '관상동맥', latin: 'Aa. coronariae',
+            desc: '심근 자체 혈액 공급. 협심증·MI. 항혈소판·스타틴·질산염 표적.' },
+          { id: 'sa-node', nameKo: '동방결절', latin: 'Nodus sinuatrialis',
+            desc: '심박 조율기. 베타차단제·칼슘차단제·디곡신 작용과 관련.' },
+          { id: 'ivc', nameKo: '하대정맥', latin: 'V. cava inferior',
+            desc: '하지·복부 정맥혈→우심방. 혈전·필터와 관련.' },
+          { id: 'svc', nameKo: '상대정맥', latin: 'V. cava superior',
+            desc: '상지·두부 정맥혈→우심방.' },
+          { id: 'pulmonary-a', nameKo: '폐동맥', latin: 'A. pulmonalis',
+            desc: '우심실→폐. 폐동맥고혈압 치료제 표적.' },
+          { id: 'capillary', nameKo: '모세혈관', latin: 'Vasa capillaria',
+            desc: '조직 가스·물질 교환. 약물의 분포 단계와 직결.' }
+        ]
+      },
+      {
+        id: 'neuro', name: '신경계', icon: '🧠',
+        items: [
+          { id: 'brain', nameKo: '뇌', latin: 'Encephalon', modelId: 'brain',
+            desc: 'CNS 핵심. BBB. 항전간·항우울·마취 표적.' },
+          { id: 'frontal', nameKo: '전두엽', latin: 'Lobus frontalis', modelId: 'brain', hotspotId: 'frontal',
+            desc: '실행기능·운동계획. 항정신병·항우울 작용 영역.' },
+          { id: 'parietal', nameKo: '두정엽', latin: 'Lobus parietalis', modelId: 'brain', hotspotId: 'parietal',
+            desc: '체성감각·공간인지.' },
+          { id: 'temporal', nameKo: '측두엽', latin: 'Lobus temporalis', modelId: 'brain', hotspotId: 'temporal',
+            desc: '청각·기억. 해마. 알츠하이머·간질.' },
+          { id: 'occipital', nameKo: '후두엽', latin: 'Lobus occipitalis', modelId: 'brain', hotspotId: 'occipital',
+            desc: '시각 피질.' },
+          { id: 'cerebellum', nameKo: '소뇌', latin: 'Cerebellum', modelId: 'brain', hotspotId: 'cerebellum',
+            desc: '협조·균형. 약물 유발 실조.' },
+          { id: 'brainstem', nameKo: '뇌간', latin: 'Truncus encephali', modelId: 'brain', hotspotId: 'brainstem',
+            desc: '호흡·심박. 아편 호흡억제 작용점.' },
+          { id: 'bbb', nameKo: '혈액뇌장벽', latin: 'Barrière hémato-encéphalique',
+            desc: 'CNS 약물 전달 제한. 지용성·작은 분자·특수 수송체가 투과에 유리.' },
+          { id: 'spinal', nameKo: '척수', latin: 'Medulla spinalis',
+            desc: '중추-말초 연결. 국소마취·척추마취 작용 부위.' },
+          { id: 'pns', nameKo: '말초신경', latin: 'Systema nervosum periphericum',
+            desc: '감각·운동 신경. 국소마취제·신경근차단제 표적.' },
+          { id: 'ans', nameKo: '자율신경', latin: 'Systema nervosum autonomicum',
+            desc: '교감·부교감. 아드레날린·콜린 작용 약물의 표적 계통.' },
+          { id: 'synapse', nameKo: '시냅스', latin: 'Synapsis',
+            desc: '신경전달물질 방출·수용체. 대부분의 CNS·ANS 약물 작용점.' }
+        ]
+      },
+      {
+        id: 'resp', name: '호흡계', icon: '🫁',
+        items: [
+          { id: 'lungs', nameKo: '폐', latin: 'Pulmones', modelId: 'lungs',
+            desc: '가스 교환. 흡입제 주 경로.' },
+          { id: 'trachea', nameKo: '기관', latin: 'Trachea', modelId: 'lungs', hotspotId: 'trachea',
+            desc: '기도. 기관지확장제 경로.' },
+          { id: 'bronchi', nameKo: '기관지', latin: 'Bronchi', modelId: 'lungs', hotspotId: 'rbr',
+            desc: '기도 분기. 천식·COPD 치료 표적.' },
+          { id: 'alveoli', nameKo: '폐포', latin: 'Alveoli pulmonis',
+            desc: '가스 교환 단위. 흡입 약물의 최종 도달 부위. 표면활성제 관련.' },
+          { id: 'pleura', nameKo: '흉막', latin: 'Pleura',
+            desc: '폐 표면·흉벽 내면 장막. 흉수·기흉과 관련.' },
+          { id: 'diaphragm', nameKo: '횡격막', latin: 'Diaphragma',
+            desc: '주 호흡근. 횡격막 신경(C3–5) 지배.' },
+          { id: 'rlung', nameKo: '우폐', latin: 'Pulmo dexter', modelId: 'lungs', hotspotId: 'rlung',
+            desc: '3엽 구조.' },
+          { id: 'llung', nameKo: '좌폐', latin: 'Pulmo sinister', modelId: 'lungs', hotspotId: 'llung',
+            desc: '2엽 구조.' }
+        ]
+      },
+      {
+        id: 'digest', name: '소화계', icon: '🟠',
+        items: [
+          { id: 'liver', nameKo: '간', latin: 'Hepar', modelId: 'liver',
+            desc: '약물 대사·CYP450. 초회통과·간독성.' },
+          { id: 'rlobe', nameKo: '간 우엽', latin: 'Lobus hepatis dexter', modelId: 'liver', hotspotId: 'rlobe',
+            desc: '간 주 용적.' },
+          { id: 'llobe', nameKo: '간 좌엽', latin: 'Lobus hepatis sinister', modelId: 'liver', hotspotId: 'llobe',
+            desc: '좌측 엽.' },
+          { id: 'porta', nameKo: '간문', latin: 'Porta hepatis', modelId: 'liver', hotspotId: 'porta',
+            desc: '혈관·담관 출입.' },
+          { id: 'gallbladder', nameKo: '담낭', latin: 'Vesica biliaris', modelId: 'liver', hotspotId: 'gb',
+            desc: '담즙 저장. 담석·담즙 배설 약물.' },
+          { id: 'bile', nameKo: '담관', latin: 'Ductus biliferi',
+            desc: '담즙 배출 경로. 폐쇄 시 황달·약물 배설 장애.' },
+          { id: 'intestine', nameKo: '장', latin: 'Intestinum', modelId: 'intestine',
+            desc: '경구 흡수 주 부위.' },
+          { id: 'si', nameKo: '소장', latin: 'Intestinum tenue', modelId: 'intestine', hotspotId: 'si',
+            desc: '십이지장·공장·회장. 대부분 약물 흡수.' },
+          { id: 'duodenum', nameKo: '십이지장', latin: 'Duodenum',
+            desc: '위 다음 구간. 철·칼슘·일부 약물 흡수. 궤양 호발.' },
+          { id: 'jejunum', nameKo: '공장', latin: 'Jejunum',
+            desc: '소장 중간. 영양소·약물 흡수 활발.' },
+          { id: 'ileum', nameKo: '회장', latin: 'Ileum', modelId: 'intestine', hotspotId: 'ileum',
+            desc: 'B12·담즙산. 크론 호발.' },
+          { id: 'li', nameKo: '대장', latin: 'Intestinum crassum', modelId: 'intestine', hotspotId: 'li',
+            desc: '수분 재흡수. 장내미생물 대사.' },
+          { id: 'stomach', nameKo: '위', latin: 'Gaster',
+            desc: '산 분비·일부 흡수. PPI·H2차단제·제산제 표적. 위산이 약물 안정성·흡수에 영향.' },
+          { id: 'esophagus', nameKo: '식도', latin: 'Oesophagus',
+            desc: '인두→위. 비스포스포네이트 등 식도 자극 약물 주의.' },
+          { id: 'pancreas', nameKo: '췌장', latin: 'Pancreas', modelId: 'pancreas',
+            desc: '소화효소·인슐린. 당뇨·췌장효소제.' },
+          { id: 'p-head', nameKo: '췌장 두부', latin: 'Caput pancreatis', modelId: 'pancreas', hotspotId: 'head',
+            desc: '십이지장 인접. 두부암·황달.' },
+          { id: 'p-body', nameKo: '췌장 체부', latin: 'Corpus pancreatis', modelId: 'pancreas', hotspotId: 'body',
+            desc: '본체.' },
+          { id: 'p-tail', nameKo: '췌장 미부', latin: 'Cauda pancreatis', modelId: 'pancreas', hotspotId: 'tail',
+            desc: '비장 근처.' },
+          { id: 'islet', nameKo: '랑게르한스섬', latin: 'Insulae pancreaticae', modelId: 'pancreas', hotspotId: 'islet',
+            desc: '인슐린·글루카곤 분비. 당뇨 약 표적.' },
+          { id: 'pgp', nameKo: 'P-glycoprotein', latin: 'P-gp / ABCB1',
+            desc: '장관·BBB 등 약물 유출 펌프. 많은 약물 상호작용의 원인.' }
+        ]
+      },
+      {
+        id: 'urinary', name: '비뇨계', icon: '🫘',
+        items: [
+          { id: 'kidneys', nameKo: '신장', latin: 'Renes', modelId: 'kidneys',
+            desc: '약물 배설·수분·전해질. 신기능에 따른 용량 조절.' },
+          { id: 'rkidney', nameKo: '우신장', latin: 'Ren dexter', modelId: 'kidneys', hotspotId: 'rkidney',
+            desc: '우측 신장.' },
+          { id: 'lkidney', nameKo: '좌신장', latin: 'Ren sinister', modelId: 'kidneys', hotspotId: 'lkidney',
+            desc: '좌측 신장.' },
+          { id: 'cortex', nameKo: '신피질', latin: 'Cortex renalis', modelId: 'kidneys', hotspotId: 'cortex',
+            desc: '사구체·근위세뇨관. 일부 신독성 약물 표적.' },
+          { id: 'medulla', nameKo: '신수질', latin: 'Medulla renalis', modelId: 'kidneys', hotspotId: 'medulla',
+            desc: '헨레고리·집합관. 이뇨제 작용점.' },
+          { id: 'glomerulus', nameKo: '사구체', latin: 'Glomerulus',
+            desc: '여과 단위. GFR. 신독성·당뇨신병증 평가.' },
+          { id: 'proximal', nameKo: '근위세뇨관', latin: 'Tubulus proximalis',
+            desc: '재흡수·분비. 유기음이온/양이온 수송. 많은 약물 분비 경로.' },
+          { id: 'loop', nameKo: '헨레고리', latin: 'Ansa nephroni',
+            desc: '루프 이뇨제(푸로세미드 등) 작용점.' },
+          { id: 'distal', nameKo: '원위세뇨관', latin: 'Tubulus distalis',
+            desc: '티아지드 이뇨제 작용점. Na-Cl 공동수송체.' },
+          { id: 'collecting', nameKo: '집합관', latin: 'Tubulus colligens',
+            desc: '알도스테론·ADH 작용. 스피로노락톤·바소프레신 관련.' },
+          { id: 'ureter', nameKo: '요관', latin: 'Ureter', modelId: 'kidneys', hotspotId: 'ureter',
+            desc: '신우→방광. 결석·감염.' },
+          { id: 'bladder', nameKo: '방광', latin: 'Vesica urinaria',
+            desc: '요 저장. 항콜린·베타3작용제 등 과민성방광 치료 표적.' },
+          { id: 'urethra', nameKo: '요도', latin: 'Urethra',
+            desc: '요 배출 통로.' }
+        ]
+      },
+      {
+        id: 'endo', name: '내분비계', icon: '🟡',
+        items: [
+          { id: 'pancreas-endo', nameKo: '췌장 (내분비)', latin: 'Pancreas endocrinum', modelId: 'pancreas',
+            desc: '인슐린·글루카곤. 당뇨 치료 핵심.' },
+          { id: 'islet2', nameKo: '랑게르한스섬', latin: 'Insulae pancreaticae', modelId: 'pancreas', hotspotId: 'islet',
+            desc: 'β세포 인슐린, α세포 글루카곤.' },
+          { id: 'thyroid', nameKo: '갑상선', latin: 'Glandula thyroidea',
+            desc: 'T3/T4. 항갑상선제·레보티록신. 요오드 대사.' },
+          { id: 'parathyroid', nameKo: '부갑상선', latin: 'Glandulae parathyroideae',
+            desc: 'PTH. 칼슘·인 조절. 골다공증·만성신질환 관련.' },
+          { id: 'adrenal', nameKo: '부신', latin: 'Glandula suprarenalis',
+            desc: '코르티솔·알도스테론·카테콜아민. 스테로이드·항고혈압과 관련.' },
+          { id: 'adrenal-c', nameKo: '부신피질', latin: 'Cortex glandulae suprarenalis',
+            desc: '글루코·미네랄코르티코이드. 외인성 스테로이드 피드백.' },
+          { id: 'adrenal-m', nameKo: '부신수질', latin: 'Medulla glandulae suprarenalis',
+            desc: '에피네프린·노르에피네프린 분비.' },
+          { id: 'pituitary', nameKo: '뇌하수체', latin: 'Hypophysis',
+            desc: '전엽·후엽 호르몬. 많은 내분비축의 상위 조절.' },
+          { id: 'hypothalamus', nameKo: '시상하부', latin: 'Hypothalamus',
+            desc: '방출호르몬. 체온·식욕·수분. CNS 약물과 간접 관련.' },
+          { id: 'gonad', nameKo: '생식샘', latin: 'Glandes sexuales',
+            desc: '성호르몬. 피임·호르몬대체·항안드로겐 등.' }
+        ]
+      },
+      {
+        id: 'sense', name: '감각기', icon: '👁️',
+        items: [
+          { id: 'eyeball', nameKo: '안구', latin: 'Bulbus oculi', modelId: 'eyeball',
+            desc: '시각. 점안제 투여 경로.' },
+          { id: 'cornea', nameKo: '각막', latin: 'Cornea', modelId: 'eyeball', hotspotId: 'cornea',
+            desc: '점안 흡수 주 경로.' },
+          { id: 'lens', nameKo: '수정체', latin: 'Lens', modelId: 'eyeball', hotspotId: 'lens',
+            desc: '초점. 스테로이드 백내장 위험.' },
+          { id: 'retina', nameKo: '망막', latin: 'Retina', modelId: 'eyeball', hotspotId: 'retina',
+            desc: '광수용. 항VEGF 등 표적.' },
+          { id: 'optic', nameKo: '시신경 유두', latin: 'Discus n. optici', modelId: 'eyeball', hotspotId: 'optic',
+            desc: '녹내장 지표.' },
+          { id: 'aqueous', nameKo: '방수', latin: 'Humor aquosus',
+            desc: '전방 순환. 녹내장 점안제(프로스타글란딘·베타차단 등) 표적.' },
+          { id: 'ear', nameKo: '귀 (내이)', latin: 'Auris interna',
+            desc: '청각·평형. 아미노글리코사이드 이독성 주의.' },
+          { id: 'skin', nameKo: '피부', latin: 'Cutis',
+            desc: '국소 도포·경피 흡수. 장벽 기능이 약물 투과에 영향.' }
+        ]
+      },
+      {
+        id: 'blood', name: '혈액·면역', icon: '🩸',
+        items: [
+          { id: 'plasma', nameKo: '혈장', latin: 'Plasma sanguinis',
+            desc: '약물 단백결합(알부민 등). 분포용적·유리형 농도에 영향.' },
+          { id: 'rbc', nameKo: '적혈구', latin: 'Erythrocyti',
+            desc: '산소 운반. 일부 약물이 용혈·빈혈 유발 가능.' },
+          { id: 'wbc', nameKo: '백혈구', latin: 'Leucocyti',
+            desc: '면역. 항암·면역억제제의 골수억제 모니터링.' },
+          { id: 'platelet', nameKo: '혈소판', latin: 'Thrombocyti',
+            desc: '지혈. 항혈소판제(아스피린·클로피도그렐) 표적.' },
+          { id: 'coag', nameKo: '응고인자', latin: 'Factor coagulationis',
+            desc: '와파린·DOAC·헤파린 표적 경로.' },
+          { id: 'lymph', nameKo: '림프절', latin: 'Nodi lymphoidei',
+            desc: '면역 감시. 전이·림프종과 관련.' },
+          { id: 'spleen', nameKo: '비장', latin: 'Splen',
+            desc: '혈액 여과·면역. 비장절제 시 감염 위험.' },
+          { id: 'bm', nameKo: '골수', latin: 'Medulla ossium',
+            desc: '조혈. 항암제 골수억제·G-CSF 등.' }
+        ]
+      },
+      {
+        id: 'msk', name: '근골격계', icon: '🦴',
+        items: [
+          { id: 'bone', nameKo: '뼈', latin: 'Os',
+            desc: '지지·조혈·칼슘 저장. 비스포스포네이트·비타민D·칼시토닌 관련.' },
+          { id: 'joint', nameKo: '관절', latin: 'Articulatio',
+            desc: 'NSAID·스테로이드·생물학적제제(류마티스) 표적.' },
+          { id: 'cartilage', nameKo: '연골', latin: 'Cartilago',
+            desc: '관절 연골. 골관절염·연골보호제 논의.' },
+          { id: 'skeletal-m', nameKo: '골격근', latin: 'Musculus skeleti',
+            desc: '운동. 스타틴 근육통·횡문근융해 주의. 신경근차단제 표적.' },
+          { id: 'smooth-m', nameKo: '평활근', latin: 'Musculus nonstriatus',
+            desc: '혈관·기관지·위장관. 칼슘차단제·베타2작용제·항콜린 등.' },
+          { id: 'nmj', nameKo: '신경근접합부', latin: 'Junctio neuromuscularis',
+            desc: '아세틸콜린. 근이완제(숙시닐콜린·로쿠로늄) 작용점.' }
+        ]
+      }
+    ];
+
+
+    // ─── 골격계 목록 ───
+    const SKELETON_URL = 'models/skeleton.glb';
+    const SKELETON_SYSTEMS = [
+      {
+        id: 'spine', name: '척추', icon: '🦴',
+        items: [
+          { id: 'spine-all', nameKo: '척추 전체', latin: 'Columna vertebralis', match: ['vertebra','Vertebra','Atlas','Axis','Coccyx','Sacrum'],
+            desc: '경·흉·요·천·미추. 척수 보호. 디스크·골다공증 관련.' }
+        ]
+      }
+    ];
+
+    let currentTab = 'organs';
+    let skeletonRoot = null;
+    let skeletonMeshes = [];
+    let selectedBoneMeshes = [];
+    let boneOriginalMats = new Map();
+
+
+    // ─── Three.js ───
+    const container = document.getElementById('canvas-container');
+    const labelLayer = document.getElementById('label-layer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1419);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    camera.position.set(0, 0.3, 2.2);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.add(new THREE.HemisphereLight(0xb1e1ff, 0x1a1a2e, 0.55));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.4);
+    dir.position.set(3, 5, 4); scene.add(dir);
+    const fill = new THREE.DirectionalLight(0x88aaff, 0.35);
+    fill.position.set(-3, 1, -2); scene.add(fill);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.08;
+    controls.minDistance = 0.35; controls.maxDistance = 8;
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/');
+    loader.setDRACOLoader(dracoLoader);
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    let currentModel = null, currentModelId = null;
+    let hotspotGroup = null, hotspotMarkers = [], labelEls = [];
+    let autoRotate = false, wireframeMode = false, showLabels = true;
+    let activeItemId = null;
+    const openSystems = new Set(['cardio']); // 기본 펼침
+
+    const organListEl = document.getElementById('organList');
+    const searchInput = document.getElementById('searchInput');
+    const loadingEl = document.getElementById('loading');
+    const loadingText = document.getElementById('loadingText');
+
+    function renderList(filter = '') {
+      const q = filter.trim().toLowerCase();
+      organListEl.innerHTML = '';
+      const source = currentTab === 'skeleton' ? SKELETON_SYSTEMS : SYSTEMS;
+      const defaultOpen = currentTab === 'skeleton' ? 'skull' : 'cardio';
+      source.forEach(sys => {
+        const matchedItems = sys.items.filter(it => {
+          if (!q) return true;
+          return it.nameKo.includes(q) || it.latin.toLowerCase().includes(q) ||
+            (it.desc && it.desc.includes(q)) || sys.name.includes(q);
+        });
+        if (q && matchedItems.length === 0) return;
+
+        const isOpen = q ? true : openSystems.has(sys.id) || (!openSystems.size && sys.id === defaultOpen);
+        const hdr = document.createElement('button');
+        hdr.className = 'sys-header';
+        hdr.innerHTML = `<span class="arrow">${isOpen ? '▼' : '▶'}</span><span class="sys-icon">${sys.icon}</span><span>${sys.name}</span>`;
+        hdr.addEventListener('click', () => {
+          if (openSystems.has(sys.id)) openSystems.delete(sys.id);
+          else openSystems.add(sys.id);
+          renderList(searchInput.value);
+        });
+        organListEl.appendChild(hdr);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'sys-items' + (isOpen ? ' open' : '');
+        matchedItems.forEach(it => {
+          const btn = document.createElement('button');
+          btn.className = 'item-btn' + (activeItemId === it.id ? ' active' : '');
+          const has3d = currentTab === 'skeleton' || !!it.modelId;
+          btn.innerHTML = `
+            <span class="dot${has3d ? '' : ' no3d'}"></span>
+            <div class="item-meta">
+              <div class="name">${it.nameKo}${has3d ? '<span class="badge">3D</span>' : ''}</div>
+              <div class="latin">${it.latin}</div>
+            </div>`;
+          btn.addEventListener('click', () => {
+            if (currentTab === 'skeleton') selectBone(it);
+            else selectItem(it);
+          });
+          wrap.appendChild(btn);
+        });
+        organListEl.appendChild(wrap);
+      });
+    }
+
+    function showInfo(title, latin, desc, tags, hint) {
+      document.getElementById('infoTitle').textContent = title;
+      document.getElementById('infoLatin').textContent = latin || '';
+      document.getElementById('infoDesc').textContent = desc || '';
+      document.getElementById('infoTags').innerHTML =
+        (tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+      document.getElementById('partHint').textContent = hint || '';
+    }
+
+    function showLoading(show, text = '로딩 중...') {
+      loadingEl.classList.toggle('hidden', !show);
+      loadingText.textContent = text;
+    }
+
+    function clearHotspots() {
+      if (hotspotGroup) {
+        scene.remove(hotspotGroup);
+        hotspotGroup.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
+        hotspotGroup = null;
+      }
+      hotspotMarkers = [];
+      labelEls.forEach(el => el.remove());
+      labelEls = [];
+    }
+
+    function clearModel() {
+      clearHotspots();
+      if (currentModel) {
+        scene.remove(currentModel);
+        currentModel.traverse(c => {
+          if (c.isMesh) {
+            c.geometry?.dispose();
+            if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+            else c.material?.dispose();
+          }
+        });
+        currentModel = null;
+        currentModelId = null;
+      }
+    }
+
+    function fitCameraToObject(object) {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = camera.fov * (Math.PI / 180);
+      const dist = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.7;
+      camera.position.set(center.x + dist * 0.35, center.y + dist * 0.2, center.z + dist);
+      controls.target.copy(center);
+      controls.update();
+      return { box, size, center, maxDim };
+    }
+
+    function createHotspots(modelDef, modelInfo, highlightId) {
+      clearHotspots();
+      hotspotGroup = new THREE.Group();
+      const { center, maxDim } = modelInfo;
+      const scale = maxDim * 0.55;
+
+      modelDef.hotspots.forEach(hs => {
+        const geo = new THREE.SphereGeometry(maxDim * 0.025, 16, 16);
+        const isHi = highlightId && hs.id === highlightId;
+        const mat = new THREE.MeshBasicMaterial({
+          color: isHi ? 0xfbbf24 : 0x3b82f6, transparent: true, opacity: 0.95
+        });
+        const marker = new THREE.Mesh(geo, mat);
+        marker.position.set(
+          center.x + hs.pos[0] * scale,
+          center.y + hs.pos[1] * scale,
+          center.z + hs.pos[2] * scale
+        );
+        marker.userData = { hotspot: hs, modelDef };
+        hotspotGroup.add(marker);
+        hotspotMarkers.push(marker);
+
+        const ringGeo = new THREE.RingGeometry(maxDim * 0.03, maxDim * 0.042, 24);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: isHi ? 0xfbbf24 : 0x60a5fa, transparent: true, opacity: 0.5,
+          side: THREE.DoubleSide, depthWrite: false
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(marker.position);
+        ring.userData = { isRing: true };
+        hotspotGroup.add(ring);
+
+        const label = document.createElement('div');
+        label.className = 'hotspot-label' + (isHi ? ' active' : '');
+        label.dataset.id = hs.id;
+        label.innerHTML = `${hs.nameKo}<span class="sub">${hs.latin}</span>`;
+        label.style.display = showLabels ? 'block' : 'none';
+        label.addEventListener('click', e => {
+          e.stopPropagation();
+          showInfo(hs.nameKo, hs.latin + '  ·  ' + modelDef.nameKo, hs.desc, modelDef.tags,
+            '다른 부위를 클릭하거나 왼쪽 목록에서 선택하세요.');
+          labelEls.forEach(el => el.classList.toggle('active', el.dataset.id === hs.id));
+        });
+        labelLayer.appendChild(label);
+        labelEls.push(label);
+        marker.userData.labelEl = label;
+      });
+      scene.add(hotspotGroup);
+    }
+
+    function updateLabels() {
+      if (!hotspotMarkers.length) return;
+      const rect = container.getBoundingClientRect();
+      hotspotMarkers.forEach(marker => {
+        const label = marker.userData.labelEl;
+        if (!label) return;
+        const pos = marker.position.clone().project(camera);
+        const x = (pos.x * 0.5 + 0.5) * rect.width;
+        const y = (-pos.y * 0.5 + 0.5) * rect.height;
+        const visible = pos.z < 1 && pos.z > -1;
+        label.style.left = x + 'px';
+        label.style.top = y + 'px';
+        label.style.display = (showLabels && visible) ? 'block' : 'none';
+      });
+      if (hotspotGroup) {
+        hotspotGroup.children.forEach(c => { if (c.userData.isRing) c.lookAt(camera.position); });
+      }
+    }
+
+    async function loadModel(modelId, hotspotId) {
+      const modelDef = MODELS[modelId];
+      if (!modelDef) return;
+
+      if (currentModelId === modelId && currentModel) {
+        // 이미 로드됨 → 핫스팟만 갱신
+        const info = fitCameraToObject(currentModel);
+        createHotspots(modelDef, info, hotspotId);
+        if (hotspotId) {
+          const hs = modelDef.hotspots.find(h => h.id === hotspotId);
+          if (hs) showInfo(hs.nameKo, hs.latin + '  ·  ' + modelDef.nameKo, hs.desc, modelDef.tags, '');
+        } else {
+          showInfo(modelDef.nameKo + ' (' + modelDef.nameEn + ')', modelDef.latin, modelDef.desc, modelDef.tags,
+            '파란 점·라벨을 클릭하면 부위 설명이 표시됩니다.');
+        }
+        return;
+      }
+
+      showLoading(true, modelDef.nameKo + ' 모델 로딩 중...');
+      clearModel();
+      try {
+        const gltf = await new Promise((res, rej) => loader.load(modelDef.modelUrl, res, undefined, rej));
+        const model = gltf.scene;
+        model.traverse(c => {
+          if (c.isMesh) {
+            c.castShadow = true; c.receiveShadow = true;
+            if (c.material) {
+              c.material.side = THREE.DoubleSide;
+              if (wireframeMode) c.material.wireframe = true;
+            }
+          }
+        });
+        scene.add(model);
+        currentModel = model;
+        currentModelId = modelId;
+        const info = fitCameraToObject(model);
+        createHotspots(modelDef, info, hotspotId);
+        if (hotspotId) {
+          const hs = modelDef.hotspots.find(h => h.id === hotspotId);
+          if (hs) showInfo(hs.nameKo, hs.latin + '  ·  ' + modelDef.nameKo, hs.desc, modelDef.tags, '');
+          else showInfo(modelDef.nameKo, modelDef.latin, modelDef.desc, modelDef.tags, '');
+        } else {
+          showInfo(modelDef.nameKo + ' (' + modelDef.nameEn + ')', modelDef.latin, modelDef.desc, modelDef.tags,
+            '파란 점·라벨을 클릭하면 부위 설명이 표시됩니다.');
+        }
+        showLoading(false);
+      } catch (err) {
+        console.error(err);
+        showLoading(true, '모델 로드 실패: ' + (err.message || err));
+        setTimeout(() => showLoading(false), 3000);
+      }
+    }
+
+
+    function clearBoneHighlight() {
+      selectedBoneMeshes.forEach(m => {
+        const orig = boneOriginalMats.get(m.uuid);
+        if (orig) m.material = orig;
+      });
+      selectedBoneMeshes = [];
+    }
+
+    function highlightBonesByMatch(matchList) {
+      clearBoneHighlight();
+      if (!skeletonMeshes.length || !matchList) return;
+      const lower = matchList.map(s => s.toLowerCase());
+      skeletonMeshes.forEach(mesh => {
+        const n = (mesh.name || '').toLowerCase();
+        if (lower.some(k => n.includes(k.toLowerCase()))) {
+          if (!boneOriginalMats.has(mesh.uuid)) {
+            boneOriginalMats.set(mesh.uuid, mesh.material);
+          }
+          const mat = mesh.material.clone();
+          mat.emissive = new THREE.Color(0x3b82f6);
+          mat.emissiveIntensity = 0.45;
+          mesh.material = mat;
+          selectedBoneMeshes.push(mesh);
+        }
+      });
+    }
+
+    async function loadSkeleton(thenHighlight) {
+      if (skeletonRoot) {
+        scene.add(skeletonRoot);
+        if (thenHighlight) highlightBonesByMatch(thenHighlight);
+        fitCameraToObject(skeletonRoot);
+        return;
+      }
+      showLoading(true, '골격 모델 로딩 중...');
+      try {
+        const gltf = await new Promise((res, rej) => loader.load(SKELETON_URL, res, undefined, rej));
+        skeletonRoot = gltf.scene;
+        skeletonMeshes = [];
+        skeletonRoot.traverse(c => {
+          if (c.isMesh) {
+            skeletonMeshes.push(c);
+            c.castShadow = true;
+            c.receiveShadow = true;
+            if (c.material) {
+              c.material.side = THREE.DoubleSide;
+              // bone-like color
+              if (c.material.color) c.material.color.setHex(0xe8dcc8);
+            }
+          }
+        });
+        scene.add(skeletonRoot);
+        fitCameraToObject(skeletonRoot);
+        if (thenHighlight) highlightBonesByMatch(thenHighlight);
+        showLoading(false);
+        console.log('Skeleton meshes:', skeletonMeshes.length);
+      } catch (err) {
+        console.error(err);
+        showLoading(true, '골격 로드 실패: ' + (err.message || err));
+        setTimeout(() => showLoading(false), 3000);
+      }
+    }
+
+    function hideSkeleton() {
+      if (skeletonRoot) scene.remove(skeletonRoot);
+      clearBoneHighlight();
+    }
+
+    function selectBone(it) {
+      activeItemId = it.id;
+      renderList(searchInput.value);
+      clearModel(); // hide organ models
+      showInfo(it.nameKo, it.latin, it.desc, ['골격계'],
+        '3D 골격에서 해당 부위가 파랗게 강조됩니다. 뼈를 직접 클릭해도 이름이 표시됩니다.');
+      loadSkeleton(it.match || [it.latin, it.nameKo]);
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabOrgans').classList.toggle('active', tab === 'organs');
+      document.getElementById('tabSkeleton').classList.toggle('active', tab === 'skeleton');
+      openSystems.clear();
+      activeItemId = null;
+      if (tab === 'skeleton') {
+        clearModel();
+        hideSkeleton();
+        showInfo('골격계', 'Systema skeletale',
+          '인체 골격은 약 206개의 뼈로 구성됩니다. 왼쪽에서 부위를 선택하거나 3D 모델의 뼈를 클릭하세요.',
+          ['골격계'], '골격 모델을 불러오는 중...');
+        loadSkeleton(null);
+      } else {
+        hideSkeleton();
+        showInfo('조직을 선택하세요', '', '왼쪽 계통 목록에서 장기·조직을 선택하세요.', [], '');
+      }
+      renderList(searchInput.value);
+    }
+
+
+    function selectItem(it) {
+      activeItemId = it.id;
+      renderList(searchInput.value);
+      hideSkeleton();
+
+      if (it.modelId) {
+        loadModel(it.modelId, it.hotspotId || null);
+      } else {
+        clearModel();
+        showInfo(it.nameKo, it.latin, it.desc, [findSystemName(it)],
+          '이 항목은 3D 모델이 없습니다. 관련 장기(3D 배지)를 선택해 모델을 볼 수 있습니다.');
+        showLoading(false);
+      }
+    }
+
+    function findSystemName(it) {
+      for (const s of SYSTEMS) {
+        if (s.items.some(i => i.id === it.id)) return s.name;
+      }
+      return '해부학';
+    }
+
+    container.addEventListener('pointerdown', (event) => {
+      const rect = container.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      if (currentTab === 'skeleton' && skeletonMeshes.length) {
+        const hits = raycaster.intersectObjects(skeletonMeshes, false);
+        if (hits.length > 0) {
+          const mesh = hits[0].object;
+          const name = mesh.name || '뼈';
+          clearBoneHighlight();
+          if (!boneOriginalMats.has(mesh.uuid)) boneOriginalMats.set(mesh.uuid, mesh.material);
+          const mat = mesh.material.clone();
+          mat.emissive = new THREE.Color(0xfbbf24);
+          mat.emissiveIntensity = 0.5;
+          mesh.material = mat;
+          selectedBoneMeshes.push(mesh);
+          // find Korean name from list
+          let ko = name, lat = name, desc = '선택한 골격 구조입니다.';
+          for (const sys of SKELETON_SYSTEMS) {
+            for (const it of sys.items) {
+              if (it.match && it.match.some(m => name.toLowerCase().includes(m.toLowerCase()))) {
+                ko = it.nameKo; lat = it.latin; desc = it.desc; break;
+              }
+            }
+          }
+          showInfo(ko, lat + (name !== ko ? '  ·  ' + name : ''), desc, ['골격계'],
+            '메시 원본 이름: ' + name);
+          return;
+        }
+      }
+
+      const hits = raycaster.intersectObjects(hotspotMarkers, false);
+      if (hits.length > 0) {
+        const { hotspot, modelDef } = hits[0].object.userData;
+        showInfo(hotspot.nameKo, hotspot.latin + '  ·  ' + modelDef.nameKo, hotspot.desc, modelDef.tags, '');
+        labelEls.forEach(el => el.classList.toggle('active', el.dataset.id === hotspot.id));
+      }
+    });
+
+    
+    document.getElementById('tabOrgans').addEventListener('click', () => switchTab('organs'));
+    document.getElementById('tabSkeleton').addEventListener('click', () => switchTab('skeleton'));
+
+    searchInput.addEventListener('input', e => renderList(e.target.value));
+
+    document.getElementById('btnLabels').addEventListener('click', function () {
+      showLabels = !showLabels;
+      this.classList.toggle('active', showLabels);
+      updateLabels();
+    });
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (currentModel) fitCameraToObject(currentModel);
+    });
+    document.getElementById('btnWire').addEventListener('click', () => {
+      wireframeMode = !wireframeMode;
+      if (currentModel) {
+        currentModel.traverse(c => {
+          if (c.isMesh && c.material) {
+            if (Array.isArray(c.material)) c.material.forEach(m => m.wireframe = wireframeMode);
+            else c.material.wireframe = wireframeMode;
+          }
+        });
+      }
+    });
+    document.getElementById('btnAuto').addEventListener('click', function () {
+      autoRotate = !autoRotate;
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 1.5;
+      this.classList.toggle('active', autoRotate);
+    });
+
+    function onResize() {
+      const w = container.clientWidth, h = container.clientHeight;
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      renderer.setSize(w, h); updateLabels();
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update(); updateLabels();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    renderList();
+    // 기본: 심장
+    selectItem(SYSTEMS[0].items[0]);
+  </script>
+</body>
+</html>

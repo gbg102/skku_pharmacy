@@ -1,5 +1,6 @@
+https://gbg102.github.io/skku_pharmacy/index.html
 
-http://localhost:8080/skku_pharmacy/skku_pharmacy_career.html
+http://localhost:8080/skku_pharmacy/index.html
 http://localhost:8080/skku_pharmacy/anatomy-3d-viewer/index.html
 http://localhost:8080/skku_pharmacy/pharm_reference/pharm_reference.html
 

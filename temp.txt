@@ -4,6 +4,7 @@ http://localhost:8080/skku_pharmacy/index.html
 http://localhost:8080/skku_pharmacy/anatomy-3d-viewer/index.html
 http://localhost:8080/skku_pharmacy/pharm_reference/pharm_reference.html
 
+http://localhost:8080/skku_pharmacy/skeleton-app/index.html
 
 [k grok]==============
 (skku_pharmacy)
@@ -27,9 +28,6 @@ http://localhost:8080/skku_pharmacy/pharm_reference/pharm_reference.html
 
 [j grok]===============
 (skku_pharmacy/anatomy-3d-viewer)
-계속하기
-
-탭을 추가하여 혈관에 대해서도 유사하게 3D로 보여주는 화면을 만들어줘
 
 [j claude]===============
 (pharm_reference.html)

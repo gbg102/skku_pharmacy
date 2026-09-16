@@ -365,6 +365,56 @@
     .enroll-bar strong { color: var(--primary); }
     .empty-hint { text-align: center; color: var(--muted); font-size: 0.83rem; padding: 1.3rem 0.5rem; }
 
+    /* Campus 3D intro */
+    .campus-intro {
+      position: fixed; inset: 0; z-index: 3000;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(30, 43, 42, 0.72);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.45s ease;
+    }
+    .campus-intro.show {
+      opacity: 1; pointer-events: auto;
+    }
+    .campus-intro.fade-out {
+      opacity: 0; pointer-events: none;
+    }
+    .campus-stage {
+      perspective: 1200px;
+      width: min(88vw, 640px);
+      height: min(55vw, 400px);
+      min-height: 260px;
+    }
+    .campus-card {
+      width: 100%; height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      border-radius: 14px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.12);
+      overflow: hidden;
+      background: #1E2B2A;
+    }
+    .campus-intro.show .campus-card {
+      animation: campusSpin 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) 1 forwards;
+    }
+    @keyframes campusSpin {
+      0%   { transform: rotateY(0deg) scale(0.88); opacity: 0.5; }
+      12%  { opacity: 1; }
+      100% { transform: rotateY(360deg) scale(1); opacity: 1; }
+    }
+    .campus-card img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      min-height: 240px; background: #2F6F5E;
+    }
+    .campus-caption {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 0.75rem 1rem;
+      background: linear-gradient(transparent, rgba(31,77,64,0.92));
+      color: #F5F6F1; font-size: 0.9rem; font-weight: 600;
+      text-align: center; letter-spacing: -0.02em;
+    }
+
+
     .learn-subnav {
       display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
       background: var(--card); padding: 0.6rem 0.8rem; border-radius: 12px;
@@ -2196,6 +2246,9 @@
         if (btn.dataset.tab === 'credits') {
           setTimeout(() => initCreditsTab(), 30);
         }
+        if (btn.dataset.tab === 'school') {
+          playCampusIntro();
+        }
       });
     });
     function syncAddCourseSem(sem) {
@@ -2422,7 +2475,53 @@
       });
     });
 
+
+    // ========== Campus 3D intro ==========
+    let campusPlaying = false;
+    let campusTimer1 = null, campusTimer2 = null;
+    function playCampusIntro() {
+      const el = document.getElementById('campusIntro');
+      if (!el || campusPlaying) return;
+      campusPlaying = true;
+      if (campusTimer1) clearTimeout(campusTimer1);
+      if (campusTimer2) clearTimeout(campusTimer2);
+      el.classList.remove('fade-out', 'show');
+      el.setAttribute('aria-hidden', 'false');
+      const card = el.querySelector('.campus-card');
+      if (card) {
+        card.style.animation = 'none';
+        void card.offsetWidth; // reflow
+        card.style.animation = 'campusSpin 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) 1 forwards';
+      }
+      el.classList.add('show');
+      // 1바퀴(2.2s) 후 페이드 아웃
+      campusTimer1 = setTimeout(() => {
+        el.classList.add('fade-out');
+        el.classList.remove('show');
+        campusTimer2 = setTimeout(() => {
+          el.classList.remove('fade-out');
+          el.setAttribute('aria-hidden', 'true');
+          if (card) card.style.animation = 'none';
+          campusPlaying = false;
+        }, 450);
+      }, 2300);
+    }
+    window.addEventListener('load', () => {
+      setTimeout(playCampusIntro, 400);
+    });
+
   </script>
+
+
+  <!-- Campus 3D intro -->
+  <div class="campus-intro" id="campusIntro" aria-hidden="true">
+    <div class="campus-stage">
+      <div class="campus-card">
+        <img src="skku_campus.jpg" alt="성균관대학교 교정">
+        <div class="campus-caption">성균관대학교 · 자연과학캠퍼스</div>
+      </div>
+    </div>
+  </div>
 
 </body>
 </html>

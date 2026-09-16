@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 인체 골격 – 로컬 실행 (개별 뼈 선택 + CSS2D 라벨)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { overflow: hidden; background: #0f172a; color: #f8fafc; }
+    #canvas-container { width: 100vw; height: 100vh; position: relative; }
+    .ui-header {
+      position: absolute; top: 10px; left: 12px; z-index: 20;
+      background: rgba(15,23,42,0.92); backdrop-filter: blur(10px);
+      padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ui-header h1 { font-size: 1.05rem; color: #38bdf8; }
+    .ui-header p { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+    .control-panel {
+      position: absolute; top: 10px; right: 12px; width: 270px; max-height: calc(100vh - 20px);
+      overflow: hidden; display: flex; flex-direction: column; z-index: 20;
+      background: rgba(15,23,42,0.94); backdrop-filter: blur(10px);
+      padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+    }
+    .panel-title { font-size: 0.8rem; font-weight: 700; color: #38bdf8; margin-bottom: 8px; text-transform: uppercase; }
+    .control-group { margin-bottom: 10px; }
+    .control-group label { display: block; font-size: 0.72rem; color: #cbd5e1; margin-bottom: 3px; }
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    button {
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+      padding: 6px 7px; border-radius: 5px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+    }
+    button:hover, button.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+    input[type="range"] { width: 100%; accent-color: #38bdf8; }
+    #search-bone {
+      width: 100%; padding: 6px 8px; margin-bottom: 6px; border-radius: 5px;
+      border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.78rem;
+    }
+    .bone-list {
+      flex: 1; overflow-y: auto; border: 1px solid #334155; border-radius: 5px; background: #0f172a;
+      max-height: 320px;
+    }
+    .bone-item {
+      padding: 5px 8px; font-size: 0.74rem; cursor: pointer; border-bottom: 1px solid #1e293b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bone-item:hover { background: #1e293b; }
+    .bone-item.active { background: #0284c7; color: #fff; }
+    .info-card {
+      position: absolute; bottom: 12px; left: 12px; width: 300px; z-index: 20;
+      background: rgba(15,23,42,0.95); backdrop-filter: blur(10px);
+      padding: 12px; border-radius: 8px; border: 1px solid #0284c7;
+    }
+    .info-card h3 { font-size: 0.98rem; color: #38bdf8; margin-bottom: 2px; }
+    .info-card .latin { font-size: 0.72rem; color: #94a3b8; font-style: italic; margin-bottom: 5px; }
+    .info-card p { font-size: 0.78rem; color: #e2e8f0; line-height: 1.35; }
+    .hint-box {
+      position: absolute; bottom: 12px; right: 12px; z-index: 20;
+      background: rgba(15,23,42,0.8); padding: 5px 9px; border-radius: 5px;
+      font-size: 0.68rem; color: #94a3b8;
+    }
+    #loading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      color: #38bdf8; font-size: 1rem; z-index: 30; text-align: center;
+    }
+    #loading .bar { width: 180px; height: 5px; background: #1e293b; border-radius: 3px; margin: 8px auto 0; overflow: hidden; }
+    #loading .fill { height: 100%; width: 0%; background: #38bdf8; transition: width 0.12s; }
+    .label {
+      color: #fff; background: rgba(2,132,199,0.92); padding: 4px 10px;
+      border-radius: 6px; font-size: 13px; font-weight: 600; white-space: nowrap;
+      pointer-events: none; border: 1px solid #38bdf8; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    로컬 모델 로딩 중...<br>
+    <div class="bar"><div class="fill" id="progress"></div></div>
+    <div id="load-status" style="font-size:0.75rem;color:#94a3b8;margin-top:6px;"></div>
+  </div>
+
+  <div class="ui-header">
+    <h1>🦴 3D Skeleton (Local)</h1>
+    <p>로컬 model 폴더 · 개별 뼈 선택 · CSS2D 라벨</p>
+  </div>
+
+  <div class="control-panel">
+    <div class="panel-title">카메라</div>
+    <div class="control-group">
+      <div class="btn-grid">
+        <button onclick="setCameraView('front')">정면</button>
+        <button onclick="setCameraView('side')">측면</button>
+        <button onclick="setCameraView('back')">후면</button>
+        <button onclick="setCameraView('skull')">두개골</button>
+      </div>
+    </div>
+    <div class="panel-title">렌더링</div>
+    <div class="control-group">
+      <label>투명도: <span id="opacity-val">1.0</span></label>
+      <input type="range" id="opacity-range" min="0.15" max="1.0" step="0.05" value="1.0" oninput="updateOpacity(this.value)">
+    </div>
+    <div class="control-group">
+      <div class="btn-grid">
+        <button id="wireframe-btn" onclick="toggleWireframe()">와이어프레임</button>
+        <button onclick="resetSelection()">선택 해제</button>
+      </div>
+    </div>
+    <div class="panel-title">뼈 검색 / 목록 (<span id="bone-count">0</span>)</div>
+    <input type="text" id="search-bone" placeholder="뼈 이름 검색..." oninput="filterBones(this.value)">
+    <div class="bone-list" id="bone-list"></div>
+  </div>
+
+  <div class="info-card">
+    <h3 id="bone-title">뼈를 클릭하거나 목록에서 선택하세요</h3>
+    <div class="latin" id="bone-latin">Click a bone or search the list</div>
+    <p id="bone-desc">로컬 model 폴더의 GLB를 사용합니다. Draco 압축본이 있으면 더 빠르게 로드됩니다.</p>
+  </div>
+
+  <div class="hint-box">좌클릭 선택 · 우클릭 회전 · 휠 Zoom</div>
+  <div id="canvas-container"></div>
+
+  <!-- 로컬 라이브러리 (외부 CDN 없음) -->
+  <script src="./libs/three.min.js"></script>
+  <script src="./libs/OrbitControls.js"></script>
+  <script src="./libs/GLTFLoader.js"></script>
+  <script src="./libs/DRACOLoader.js"></script>
+  <script src="./libs/CSS2DRenderer.js"></script>
+
+  <script>
+    // ===== 로컬 모델만 사용 =====
+    const LOCAL_MODELS = [
+      './model/skeleton-draco.glb',
+      './model/skeleton.glb'
+    ];
+
+    // ===== 카메라 방향 보정 =====
+    // '정면' 버튼을 눌렀을 때 원하는 면이 안 보이면 아래 숫자를 바꾸세요.
+    // 마우스로 모델을 돌려 원하는 "정면" 각도를 찾은 뒤,
+    // 화면을 그 상태로 두고 콘솔(F12)을 보면
+    // "[각도 참고] 현재 방위각: xx 도" 가 뜹니다. 그 숫자를 아래에 넣으세요.
+    let FRONT_AZIMUTH_DEG = 0;
+    // 측면이 반대쪽(왼쪽/오른쪽)으로 보이면 90 → -90 으로 바꾸세요.
+    const SIDE_AZIMUTH_OFFSET = 90;
+
+    // ===== 모델 축(방향) 보정 =====
+    // 이 GLB는 Y축이 "위"가 아니라 눕혀진 상태로 로드되고 있습니다.
+    // 아래 값을 0 / 90 / -90 / 180 순으로 바꿔가며 모델이 "똑바로 서는" 값을 찾으세요.
+    const MODEL_UP_FIX_X_DEG = -90;  // 앞/뒤로 누워있으면 이 값을 조정
+    const MODEL_UP_FIX_Z_DEG = 0;    // 좌/우로 누워있으면 이 값을 조정 (보통 위 값 하나면 충분)
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(0, 1.2, 7.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = false;
+    // three 버전에 따라 속성명이 다름 (r152 이전/이후)
+    if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding !== undefined) {
+      renderer.outputEncoding = THREE.sRGBEncoding;
+    }
+    container.appendChild(renderer.domElement);
+
+    const labelRenderer = new THREE.CSS2DRenderer();
+    labelRenderer.setSize(innerWidth, innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    container.appendChild(labelRenderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0, 0.9, 0);
+    controls.minDistance = 1.0;
+    controls.maxDistance = 25;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+    dir.position.set(3, 7, 4);
+    scene.add(dir);
+    const fill = new THREE.DirectionalLight(0x38bdf8, 0.3);
+    fill.position.set(-4, 2, -3);
+    scene.add(fill);
+
+    let skeletonRoot = null;
+    let selectedMesh = null;
+    let currentLabel = null;
+    const originalMats = new Map();
+    const allBoneMeshes = [];
+
+    // Draco (로컬 decoder)
+    const dracoLoader = new THREE.DRACOLoader();
+    dracoLoader.setDecoderPath('./libs/draco/');
+    dracoLoader.setDecoderConfig({ type: 'js' });
+
+    const loader = new THREE.GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+
+    let loadIndex = 0;
+
+    function updateStatus(msg) {
+      const el = document.getElementById('load-status');
+      if (el) el.textContent = msg;
+    }
+
+    // 파일 존재 여부를 HEAD 요청으로 먼저 확인 (404 콘솔 에러 방지)
+    // true = 있음, false = 없음, null = 확인 불가(file:// 등) → 일단 시도
+    function fileExists(url) {
+      if (location.protocol === 'file:') return Promise.resolve(null);
+      return fetch(url, { method: 'HEAD', cache: 'no-store' })
+        .then(function (res) { return res.ok; })
+        .catch(function () { return null; });
+    }
+
+    // Draco decoder가 실제로 있는지 1회만 확인
+    let dracoChecked = null;
+    function dracoAvailable() {
+      if (dracoChecked !== null) return Promise.resolve(dracoChecked);
+      return fileExists('./libs/draco/draco_decoder.js').then(function (ok) {
+        dracoChecked = (ok === null) ? true : ok;
+        if (!dracoChecked) console.info('Draco decoder 없음 → 비압축 모델을 사용합니다.');
+        return dracoChecked;
+      });
+    }
+
+    function tryLoad() {
+      if (loadIndex >= LOCAL_MODELS.length) {
+        document.getElementById('loading').innerHTML =
+          '모델 파일을 찾을 수 없습니다.<br><small>model/skeleton-draco.glb 또는 model/skeleton.glb 를 넣어주세요</small>';
+        return;
+      }
+
+      const url = LOCAL_MODELS[loadIndex];
+      const isDraco = /draco/i.test(url);
+
+      fileExists(url).then(function (exists) {
+        if (exists === false) {
+          console.info('건너뜀 (파일 없음):', url);
+          updateStatus('건너뜀: ' + url);
+          loadIndex++;
+          tryLoad();
+          return null;
+        }
+        return isDraco ? dracoAvailable() : true;
+      }).then(function (proceed) {
+        if (proceed === null) return;       // 이미 다음 후보로 넘어감
+        if (proceed === false) {            // draco 파일은 있으나 decoder가 없음
+          console.info('건너뜀 (Draco decoder 없음):', url);
+          loadIndex++;
+          tryLoad();
+          return;
+        }
+
+        updateStatus('로딩: ' + url);
+        console.log('Loading local:', url);
+
+        loader.load(url, onLoadSuccess, onProgress, function (err) {
+          console.warn('로드 실패:', url, (err && err.message) ? err.message : err);
+          loadIndex++;
+          tryLoad();
+        });
+      });
+    }
+
+    function onProgress(xhr) {
+      if (xhr.total) {
+        const pct = Math.min(100, Math.round(xhr.loaded / xhr.total * 100));
+        document.getElementById('progress').style.width = pct + '%';
+        updateStatus(pct + '%');
+      }
+    }
+
+function onLoadSuccess(gltf) {
+  skeletonRoot = gltf.scene;
+
+  // Draco 워커/메모리 정리 (더 이상 로드할 모델 없음)
+  if (dracoLoader && dracoLoader.dispose) dracoLoader.dispose();
+
+  // 0) 축(방향) 보정 — 반드시 크기/위치 계산보다 먼저 적용
+  skeletonRoot.rotation.x = THREE.MathUtils.degToRad(MODEL_UP_FIX_X_DEG);
+  skeletonRoot.rotation.z = THREE.MathUtils.degToRad(MODEL_UP_FIX_Z_DEG);
+  skeletonRoot.updateMatrixWorld(true);
+
+  // 1) 크기 정규화
+  let box = new THREE.Box3().setFromObject(skeletonRoot);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const scale = 1.6 / Math.max(size.y, 0.001);
+  skeletonRoot.scale.setScalar(scale);
+
+  // 2) 바닥 맞춤
+  box.setFromObject(skeletonRoot);
+  skeletonRoot.position.y = -box.min.y;
+  skeletonRoot.position.x -= center.x * scale;
+  skeletonRoot.position.z -= center.z * scale;
+
+  // 3) 카메라 자동 맞춤 + 고정 회전 중심 (순서 중요)
+  box.setFromObject(skeletonRoot);
+  const fitCenter = box.getCenter(new THREE.Vector3());   // 먼저 선언
+  const fitSize = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(fitSize.x, fitSize.y, fitSize.z);
+  const fov = camera.fov * (Math.PI / 180);
+  let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.9;
+
+  // 고정 회전 중심 저장
+  window.fixedOrbitCenter = fitCenter.clone();
+
+  camera.position.set(fitCenter.x, fitCenter.y + fitSize.y * 0.08, fitCenter.z + cameraZ);
+  controls.target.copy(fitCenter);
+  controls.maxDistance = Math.max(25, cameraZ * 4);
+  controls.minDistance = Math.max(1.2, maxDim * 0.3);
+  controls.update();
+
+  // 4) 메시 수집
+  skeletonRoot.traverse(function (c) {
+    if (c.isMesh) {
+      originalMats.set(c, c.material.clone ? c.material.clone() : c.material);
+      const mat = Array.isArray(c.material) ? c.material[0] : c.material;
+      if (mat) {
+        mat.color = new THREE.Color(0xf1f5f9);
+        mat.roughness = 0.55;
+        mat.metalness = 0.06;
+        mat.transparent = true;
+        mat.opacity = 1;
+        mat.side = THREE.DoubleSide;
+      }
+      const name = (c.name || ('Bone_' + allBoneMeshes.length)).replace(/_/g, ' ');
+      allBoneMeshes.push({ mesh: c, name: name });
+    }
+  });
+
+  scene.add(skeletonRoot);
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('bone-count').textContent = allBoneMeshes.length;
+  buildBoneList();
+  console.log('Loaded bones:', allBoneMeshes.length);
+}
+
+    tryLoad();
+
+    function buildBoneList(filter) {
+      filter = filter || '';
+      const list = document.getElementById('bone-list');
+      list.innerHTML = '';
+      const q = filter.toLowerCase().trim();
+      const filtered = q ? allBoneMeshes.filter(function (b) { return b.name.toLowerCase().includes(q); }) : allBoneMeshes;
+      filtered.forEach(function (b) {
+        const div = document.createElement('div');
+        div.className = 'bone-item';
+        div.textContent = b.name;
+        div.title = b.name;
+        div.onclick = function () { selectMesh(b.mesh, b.name); };
+        list.appendChild(div);
+        b.div = div;
+      });
+    }
+
+    function filterBones(val) { buildBoneList(val); }
+
+    function selectMesh(mesh, displayName) {
+      resetSelection(false);
+      selectedMesh = mesh;
+
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(function (m) {
+          m.emissive = new THREE.Color(0x0284c7);
+          m.emissiveIntensity = 0.55;
+          m.color.set(0x38bdf8);
+        });
+      } else {
+        mesh.material.emissive = new THREE.Color(0x0284c7);
+        mesh.material.emissiveIntensity = 0.55;
+        mesh.material.color.set(0x38bdf8);
+      }
+
+      document.getElementById('bone-title').textContent = displayName || mesh.name || 'Selected Bone';
+      document.getElementById('bone-latin').textContent = 'Mesh: ' + (mesh.name || 'unnamed');
+      document.getElementById('bone-desc').textContent = '이 뼈를 선택했습니다. 위에 떠 있는 라벨을 확인하세요.';
+
+      allBoneMeshes.forEach(function (b) {
+        if (b.div) b.div.classList.toggle('active', b.mesh === mesh);
+      });
+
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'label';
+      labelDiv.textContent = displayName || mesh.name || 'Bone';
+      currentLabel = new THREE.CSS2DObject(labelDiv);
+      const box = new THREE.Box3().setFromObject(mesh);
+      const center = box.getCenter(new THREE.Vector3());
+      currentLabel.position.copy(center);
+      currentLabel.position.y += box.getSize(new THREE.Vector3()).y * 0.35 + 0.05;
+      scene.add(currentLabel);
+
+// 회전 중심은 항상 골격 전체 중심으로 고정
+if (window.fixedOrbitCenter) {
+  controls.target.copy(window.fixedOrbitCenter);
+}
+controls.update();
+
+    }
+
+    function resetSelection(clearInfo) {
+      if (clearInfo === undefined) clearInfo = true;
+      if (selectedMesh) {
+        const orig = originalMats.get(selectedMesh);
+        if (orig) {
+          selectedMesh.material = Array.isArray(orig) ? orig.map(function (m) { return m.clone(); }) : orig.clone();
+        }
+      }
+      if (currentLabel) {
+        scene.remove(currentLabel);
+        currentLabel = null;
+      }
+      selectedMesh = null;
+      allBoneMeshes.forEach(function (b) { if (b.div) b.div.classList.remove('active'); });
+      if (clearInfo) {
+        document.getElementById('bone-title').textContent = '뼈를 클릭하거나 목록에서 선택하세요';
+        document.getElementById('bone-latin').textContent = 'Click a bone or search the list';
+        document.getElementById('bone-desc').textContent = '로컬 model 폴더의 GLB를 사용합니다.';
+      }
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    window.addEventListener('click', function (e) {
+      if (!skeletonRoot || e.target.closest('.control-panel') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+      mouse.x = (e.clientX / innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObject(skeletonRoot, true);
+      if (hits.length) {
+        const mesh = hits[0].object;
+        const found = allBoneMeshes.find(function (b) { return b.mesh === mesh; });
+        selectMesh(mesh, found ? found.name : mesh.name);
+      }
+    });
+
+// 방위각(도) → 수평 방향 단위벡터 (three.js Spherical과 동일 규약: x=sin, z=cos)
+function azimuthDir(deg) {
+  const t = THREE.MathUtils.degToRad(deg + FRONT_AZIMUTH_DEG);
+  return new THREE.Vector3(Math.sin(t), 0, Math.cos(t));
+}
+
+function setCameraView(v) {
+  if (!skeletonRoot) return;
+
+  const dist = camera.position.distanceTo(controls.target);
+  const center = (window.fixedOrbitCenter)
+    ? window.fixedOrbitCenter.clone()
+    : controls.target.clone();
+
+  controls.target.copy(center);
+  camera.up.set(0, 1, 0);
+
+  if (v === 'front') {
+    camera.position.copy(center).addScaledVector(azimuthDir(0), dist);
+  } else if (v === 'back') {
+    camera.position.copy(center).addScaledVector(azimuthDir(180), dist);
+  } else if (v === 'side') {
+    camera.position.copy(center).addScaledVector(azimuthDir(SIDE_AZIMUTH_OFFSET), dist);
+  } else if (v === 'skull') {
+    // 정면과 같은 방향에서 조금 더 가깝고 높은 각도로 (기존 방식 유지)
+    camera.position.copy(center).addScaledVector(azimuthDir(0), dist * 0.7);
+    camera.position.y += dist * 0.25;
+  }
+
+  controls.update();
+}
+
+// 방향이 맞는지 확인하기 위한 참고용 로그.
+// 마우스로 회전을 멈추면 현재 방위각을 콘솔에 출력합니다.
+controls.addEventListener('end', function () {
+  const deg = THREE.MathUtils.radToDeg(controls.getAzimuthalAngle());
+  console.log('[각도 참고] 현재 방위각:', deg.toFixed(1), '도');
+});
+
+    function updateOpacity(val) {
+      document.getElementById('opacity-val').textContent = val;
+      if (!skeletonRoot) return;
+      skeletonRoot.traverse(function (c) {
+        if (c.isMesh && c !== selectedMesh) {
+          if (Array.isArray(c.material)) c.material.forEach(function (m) { m.opacity = +val; });
+          else c.material.opacity = +val;
+        }
+      });
+    }
+
+    function toggleWireframe() {
+      const btn = document.getElementById('wireframe-btn');
+      btn.classList.toggle('active');
+      const w = btn.classList.contains('active');
+      if (!skeletonRoot) return;
+      skeletonRoot.traverse(function (c) {
+        if (c.isMesh) {
+          if (Array.isArray(c.material)) c.material.forEach(function (m) { m.wireframe = w; });
+          else c.material.wireframe = w;
+        }
+      });
+    }
+
+    window.addEventListener('resize', function () {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      labelRenderer.setSize(innerWidth, innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
